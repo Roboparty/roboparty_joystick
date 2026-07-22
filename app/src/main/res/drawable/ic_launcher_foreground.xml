@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 左手柄握把 -->
+    <path
+        android:fillColor="#CCCCCC"
+        android:pathData="M32,56 C26,56 22,52 22,46 L22,42 C22,36 26,32 32,32 L38,32 L38,56 Z" />
+
+    <!-- 右手柄握把 -->
+    <path
+        android:fillColor="#BBBBBB"
+        android:pathData="M76,56 C82,56 86,52 86,46 L86,42 C86,36 82,32 76,32 L70,32 L70,56 Z" />
+
+    <!-- 主体 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,34 L76,34 Q82,34 82,40 L82,46 Q82,52 76,52 L32,52 Q26,52 26,46 L26,40 Q26,34 32,34 Z" />
+
+    <!-- D-Pad 竖条 -->
+    <path
+        android:fillColor="#1A73E8"
+        android:pathData="M38,38 L42,38 L42,48 L38,48 Z" />
+
+    <!-- D-Pad 横条 -->
+    <path
+        android:fillColor="#1A73E8"
+        android:pathData="M35,41 L45,41 L45,45 L35,45 Z" />
+
+    <!-- 功能键 A -->
+    <path
+        android:fillColor="#34A853"
+        android:pathData="M68,47 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+
+    <!-- 功能键 B -->
+    <path
+        android:fillColor="#EA4335"
+        android:pathData="M74,42 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+
+    <!-- 功能键 X -->
+    <path
+        android:fillColor="#FBBC04"
+        android:pathData="M62,42 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+
+    <!-- 功能键 Y -->
+    <path
+        android:fillColor="#4285F4"
+        android:pathData="M68,37 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0" />
+
+</vector>

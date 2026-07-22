@@ -1,0 +1,15 @@
+{
+  "control": {
+    "host": "10.43.21.32",
+    "port": 9000
+  },
+  "controlParams": {
+    "max_linear_velocity": 1.5,
+    "max_angular_velocity": 3.0,
+    "send_frequency_hz": 50
+  },
+  "failSafe": {
+    "gamepad_timeout_ms": 500,
+    "stale_packet_ms": 300
+  }
+}
