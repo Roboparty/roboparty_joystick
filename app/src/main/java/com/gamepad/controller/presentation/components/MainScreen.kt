@@ -1,5 +1,6 @@
 package com.gamepad.controller.presentation.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -21,7 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.gamepad.controller.R
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.domain.model.UiIntent
 import com.gamepad.controller.presentation.RobotControlViewModel
@@ -52,8 +56,16 @@ fun MainScreen(viewModel: RobotControlViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFAFA))
+            .background(Color(0xFFFFFFFF))
     ) {
+        // 背景图片 — 铺满全屏含状态栏区域
+        Image(
+            painter = painterResource(id = R.drawable.background),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
         // ---- 主内容（卡片弹出时添加模糊效果） ----
         Box(
             modifier = Modifier

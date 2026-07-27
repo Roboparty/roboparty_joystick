@@ -52,7 +52,7 @@ fun StatusBar(modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .height(40.dp)
-            .background(Color(0xFFF5F5F5))
+            .background(Color.Transparent)
             .padding(horizontal = 32.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
