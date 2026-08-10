@@ -4,10 +4,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gamepad.controller.data.config.ConnectionConfig
+import com.gamepad.controller.data.model.BatteryData
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.data.model.enums.GamepadButton
 import com.gamepad.controller.data.model.packet.AxesState
 import com.gamepad.controller.data.model.packet.ControlPacket
+import com.gamepad.controller.data.service.BleControlChannel
+import com.gamepad.controller.data.service.ReliableActionSender
+import com.gamepad.controller.data.service.UdpControlChannel
+import com.gamepad.controller.domain.model.ActionRequestState
 import com.gamepad.controller.domain.model.PostureMode
 import com.gamepad.controller.domain.model.RawInput
 import com.gamepad.controller.domain.model.UiIntent
@@ -59,6 +64,67 @@ class RobotControlViewModel @Inject constructor(
     private var controlSendJob: Job? = null
     private val latestAxes = MutableStateFlow(AxesState.ZERO)
 
+    // ==================== 技能动作 ====================
+
+    private val actionSender = ReliableActionSender(controlChannel)
+
+    /**
+     * 当前正在执行的动作ID
+     */
+    val currentActionId: StateFlow<String?> = actionSender.currentAction
+
+    /**
+     * 获取指定动作的状态流
+     */
+    fun getActionState(actionId: String): StateFlow<ActionRequestState> {
+        return actionSender.getActionState(actionId)
+    }
+
+    /**
+     * 是否有动作正在执行
+     */
+    fun isActionExecuting(): Boolean {
+        return actionSender.isActionExecuting()
+    }
+
+    /**
+     * 执行技能动作
+     */
+    fun executeSkillAction(actionId: String) {
+        viewModelScope.launch {
+            try {
+                val success = actionSender.sendAction(actionId)
+                Log.i(TAG, "Skill action $actionId result: $success")
+            } catch (e: IllegalStateException) {
+                Log.w(TAG, "Action rejected: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Skill action failed: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * 处理技能动作确认（ACK1）
+     */
+    fun handleSkillActionAckReceived(requestId: String) {
+        actionSender.handleAckReceived(requestId)
+    }
+
+    /**
+     * 处理技能动作执行完成（ACK2）
+     */
+    fun handleSkillActionAckCompleted(requestId: String, status: String, executionTime: Long) {
+        actionSender.handleAckCompleted(requestId, status, executionTime)
+    }
+
+    /**
+     * 处理电池数据
+     */
+    fun handleBatteryData(batteryData: BatteryData) {
+        _uiState.value = _uiState.value.copy(batteryData = batteryData)
+        Log.d(TAG, "Battery data: voltage=${batteryData.voltage}V, soc=${batteryData.soc}%, temp=${batteryData.temp}°C")
+    }
+
     // ==================== 初始化 ====================
 
     init {
@@ -66,6 +132,41 @@ class RobotControlViewModel @Inject constructor(
         setupControlLoop()
         observeConnectionStatus()
         observeActiveDevice()
+        observeTokenValidity()
+        setupChannelCallbacks()
+    }
+
+    /**
+     * 设置通道回调
+     */
+    private fun setupChannelCallbacks() {
+        // 电池数据回调
+        val batteryCallback: (BatteryData) -> Unit = { batteryData ->
+            handleBatteryData(batteryData)
+        }
+
+        // 技能动作确认回调
+        val ackReceivedCallback: (String) -> Unit = { requestId ->
+            handleSkillActionAckReceived(requestId)
+        }
+
+        val ackCompletedCallback: (String, String, Long) -> Unit = { requestId, status, executionTime ->
+            handleSkillActionAckCompleted(requestId, status, executionTime)
+        }
+
+        // 设置 UDP 通道回调
+        (controlChannel as? UdpControlChannel)?.let { udp ->
+            udp.onBatteryDataReceived = batteryCallback
+            udp.onSkillActionAckReceived = ackReceivedCallback
+            udp.onSkillActionAckCompleted = ackCompletedCallback
+        }
+
+        // 设置 BLE 通道回调
+        (controlChannel as? BleControlChannel)?.let { ble ->
+            ble.onBatteryDataReceived = batteryCallback
+            ble.onSkillActionAckReceived = ackReceivedCallback
+            ble.onSkillActionAckCompleted = ackCompletedCallback
+        }
     }
 
     private fun setupInputListener() {
@@ -88,11 +189,8 @@ class RobotControlViewModel @Inject constructor(
 
     private fun observeConnectionStatus() {
         viewModelScope.launch {
-            controlChannel.isConnected.collect { connected ->
-                _uiState.value = _uiState.value.copy(
-                    connectionStatus = if (connected) ConnectionStatus.CONNECTED
-                                       else ConnectionStatus.DISCONNECTED
-                )
+            controlChannel.connectionStatus.collect { status ->
+                _uiState.value = _uiState.value.copy(connectionStatus = status)
             }
         }
     }
@@ -105,6 +203,31 @@ class RobotControlViewModel @Inject constructor(
                     deviceName = device?.name ?: ""
                 )
             }
+        }
+    }
+
+    private fun observeTokenValidity() {
+        viewModelScope.launch {
+            controlChannel.isTokenValid.collect { isValid ->
+                _uiState.value = _uiState.value.copy(isTokenValid = isValid)
+                if (!isValid && _uiState.value.isConnected) {
+                    Log.w(TAG, "Token expired or invalid, attempting reconnection")
+                    // Token 过期，尝试重新连接
+                    reconnectRobot()
+                }
+            }
+        }
+    }
+
+    /**
+     * 重新连接机器人
+     */
+    private fun reconnectRobot() {
+        viewModelScope.launch {
+            Log.i(TAG, "Reconnecting due to token expiration")
+            controlChannel.disconnect()
+            kotlinx.coroutines.delay(1000)
+            connectRobot()
         }
     }
 
@@ -254,6 +377,7 @@ class RobotControlViewModel @Inject constructor(
             dpadRight = buttonStates[GamepadButton.DPAD_RIGHT] == true
         )
 
+        Log.d(TAG, "Sending ${packet.type} packet, seq=${packet.sequence}")
         controlChannel.sendControl(packet)
     }
 

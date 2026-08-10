@@ -1,5 +1,8 @@
 package com.gamepad.controller.domain.model
 
+import com.gamepad.controller.data.model.BatteryData
+import com.gamepad.controller.data.model.ImuData
+import com.gamepad.controller.data.model.MotorStatus
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 
 /**
@@ -20,6 +23,7 @@ data class UiState(
     val deviceName: String = "",
     val buttons: Int = 0,
     val isEstopping: Boolean = false,
+    val isTokenValid: Boolean = false,  // Token 是否有效
     // 姿态
     val posture: PostureMode = PostureMode.STAND,
     // 左摇杆实时位置（-1~1）
@@ -27,7 +31,13 @@ data class UiState(
     val stickY: Float = 0f,
     // 右摇杆实时位置（-1~1）
     val rightStickX: Float = 0f,
-    val rightStickY: Float = 0f
+    val rightStickY: Float = 0f,
+    // 电机状态
+    val motors: List<MotorStatus> = emptyList(),
+    // IMU 数据
+    val imuData: ImuData? = null,
+    // BMS 电池数据
+    val batteryData: BatteryData? = null
 ) {
     val isConnected: Boolean get() = connectionStatus.isConnected
 }

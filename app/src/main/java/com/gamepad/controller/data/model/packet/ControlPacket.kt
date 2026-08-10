@@ -4,37 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * 握手请求包 — 客户端 → 服务器
- *
- * 建立一一对应关系：每个手柄设备有唯一 ID，机器人只接受配对设备
- */
-@Serializable
-data class HandshakeRequest(
-    @SerialName("type") val type: String = "handshake",
-    @SerialName("device_id") val deviceId: String,
-    @SerialName("device_name") val deviceName: String = "Android Gamepad",
-    @SerialName("timestamp") val timestamp: Long = System.currentTimeMillis()
-)
-
-/**
- * 握手响应包 — 服务器 → 客户端
- *
- * @param ok 握手是否成功
- * @param session_id 会话 ID（后续控制包需携带）
- * @param reason 失败原因（如"device already paired"）
- */
-@Serializable
-data class HandshakeResponse(
-    @SerialName("type") val type: String = "handshake_response",
-    @SerialName("ok") val ok: Boolean,
-    @SerialName("session_id") val sessionId: String = "",
-    @SerialName("reason") val reason: String = ""
-)
-
-/**
  * 控制指令包 — 匹配目标 UDP 服务器 JSON 格式
  *
  * 字段说明：
+ * - type: 数据包类型标识
+ * - token: 认证令牌（三步认证后获取）
  * - timestamp: 毫秒时间戳
  * - sequence: 单调递增序列号
  * - left_stick_x/y: 左摇杆归一化 [-1, 1]
@@ -44,6 +18,8 @@ data class HandshakeResponse(
  */
 @Serializable
 data class ControlPacket(
+    @SerialName("type") val type: String = "control",
+    @SerialName("token") val token: String = "",
     @SerialName("timestamp") val timestamp: Long,
     @SerialName("sequence") val sequence: Long,
     @SerialName("left_stick_x") val leftStickX: Float = 0f,

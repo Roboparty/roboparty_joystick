@@ -11,5 +11,20 @@
   "failSafe": {
     "gamepad_timeout_ms": 500,
     "stale_packet_ms": 300
+  },
+  "auth": {
+    "timeout_ms": 5000,
+    "retry_count": 3,
+    "heartbeat_interval_ms": 500,
+    "heartbeat_timeout_ms": 5000,
+    "reconnect_delay_ms": 2000,
+    "reconnect_max_count": 5
+  },
+  "ble": {
+    "service_uuid": "0000fff0-0000-1000-8000-00805f9b34fb",
+    "tx_characteristic_uuid": "0000fff1-0000-1000-8000-00805f9b34fb",
+    "rx_characteristic_uuid": "0000fff2-0000-1000-8000-00805f9b34fb",
+    "scan_timeout_ms": 10000,
+    "mtu_size": 512
   }
 }

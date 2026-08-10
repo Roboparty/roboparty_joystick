@@ -42,16 +42,25 @@ import androidx.compose.ui.unit.sp
 
 private enum class CardTab(val label: String) {
     FUNCTIONS("功能清单"),
-    WARNINGS("告警列表")
+    WARNINGS("告警列表"),
+    MOTORS("电机状态"),
+    IMU("IMU数据")
 }
 
 /**
  * 悬浮卡片 — 全屏遮罩 + 居中弹出
  */
 @Composable
-fun FloatingCard(onDismiss: () -> Unit) {
+fun FloatingCard(
+    onDismiss: () -> Unit,
+    motors: List<com.gamepad.controller.data.model.MotorStatus> = emptyList(),
+    imuData: com.gamepad.controller.data.model.ImuData? = null,
+    onMotorClick: (com.gamepad.controller.data.model.MotorStatus) -> Unit = {}
+) {
     var selectedTab by remember { mutableStateOf(CardTab.FUNCTIONS) }
     var estopProgress by remember { mutableStateOf(0f) }
+    var showMotorDetail by remember { mutableStateOf<com.gamepad.controller.data.model.MotorStatus?>(null) }
+    var showImuDetail by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -113,8 +122,34 @@ fun FloatingCard(onDismiss: () -> Unit) {
             when (selectedTab) {
                 CardTab.FUNCTIONS -> FunctionList()
                 CardTab.WARNINGS -> WarningList()
+                CardTab.MOTORS -> MotorStatusList(
+                    motors = motors,
+                    onMotorClick = { motor ->
+                        showMotorDetail = motor
+                    }
+                )
+                CardTab.IMU -> ImuDataList(
+                    imuData = imuData,
+                    onImuClick = { showImuDetail = true }
+                )
             }
         }
+    }
+
+    // 电机详情弹窗
+    showMotorDetail?.let { motor ->
+        MotorDetailCard(
+            motor = motor,
+            onDismiss = { showMotorDetail = null }
+        )
+    }
+
+    // IMU 详情弹窗
+    if (showImuDetail) {
+        ImuDetailCard(
+            imuData = imuData,
+            onDismiss = { showImuDetail = false }
+        )
     }
 }
 

@@ -1,5 +1,8 @@
 package com.gamepad.controller.di
 
+import android.content.Context
+import com.gamepad.controller.data.config.ConnectionConfig
+import com.gamepad.controller.data.service.BleConnectionManager
 import com.gamepad.controller.data.service.GamepadInputManager
 import com.gamepad.controller.data.service.UdpControlChannel
 import com.gamepad.controller.domain.service.ControlChannel
@@ -8,6 +11,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -17,7 +21,16 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideControlChannel(): ControlChannel = UdpControlChannel()
+    fun provideControlChannel(
+        @ApplicationContext context: Context,
+        config: ConnectionConfig
+    ): ControlChannel = UdpControlChannel(context, config)
+
+    @Provides
+    @Singleton
+    fun provideBleConnectionManager(
+        @ApplicationContext context: Context
+    ): BleConnectionManager = BleConnectionManager(context)
 }
 
 @Module

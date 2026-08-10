@@ -52,6 +52,9 @@ import com.gamepad.controller.presentation.RobotControlViewModel
 fun MainScreen(viewModel: RobotControlViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     var showCard by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showNotification by remember { mutableStateOf(false) }
+    var showSkillLibrary by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -82,8 +85,18 @@ fun MainScreen(viewModel: RobotControlViewModel) {
 
                 // 顶部导航栏 — 紧贴状态栏
                 TopNavBar(
-                    selectedIndex = 1,
-                    onNavClick = { /* TODO */ }
+                    selectedIndex = when {
+                        showSkillLibrary -> 0
+                        showSettings -> 3
+                        showNotification -> 2
+                        else -> 1
+                    },
+                    onNavClick = { index ->
+                        // 互斥：打开一个面板时关闭另一个
+                        showSkillLibrary = index == 0
+                        showSettings = index == 3
+                        showNotification = index == 2
+                    }
                 )
 
                 // 连接/断开按钮
@@ -150,12 +163,63 @@ fun MainScreen(viewModel: RobotControlViewModel) {
                     .padding(end = 156.dp, bottom = 60.dp),
                 onClick = { showCard = !showCard }
             )
+
+            // ---- 设置面板（屏幕下半部分） ----
+            if (showSettings) {
+                SettingsPanel(
+                    onBack = { showSettings = false },
+                    onEstopChanged = { enabled ->
+                        if (enabled) viewModel.sendIntent(UiIntent.Estop)
+                        else viewModel.sendIntent(UiIntent.EstopRelease)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 19.dp)
+                )
+            }
+
+            // ---- 通知面板（屏幕下半部分） ----
+            if (showNotification) {
+                NotificationPanel(
+                    onBack = { showNotification = false },
+                    onRefresh = { /* TODO: 请求最新的电池数据 */ },
+                    batteryData = uiState.batteryData,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 19.dp)
+                )
+            }
+
+            // ---- 技能库面板（屏幕下半部分） ----
+            if (showSkillLibrary) {
+                val currentActionId by viewModel.currentActionId.collectAsState()
+
+                SkillLibraryPanel(
+                    onBack = { showSkillLibrary = false },
+                    onExecuteAction = { actionId ->
+                        viewModel.executeSkillAction(actionId)
+                    },
+                    actionStates = mapOf(
+                        "handshake" to viewModel.getActionState("handshake"),
+                        "bow" to viewModel.getActionState("bow"),
+                        "wave" to viewModel.getActionState("wave"),
+                        "nod" to viewModel.getActionState("nod"),
+                        "dance" to viewModel.getActionState("dance")
+                    ),
+                    currentActionId = currentActionId,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 19.dp)
+                )
+            }
         }
 
         // ---- 弹出卡片（全屏遮罩 + 模糊背景） ----
         if (showCard) {
             FloatingCard(
-                onDismiss = { showCard = false }
+                onDismiss = { showCard = false },
+                motors = uiState.motors,
+                imuData = uiState.imuData
             )
         }
     }

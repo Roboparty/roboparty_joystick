@@ -13,7 +13,9 @@ import java.io.IOException
 data class ConnectionConfig(
     val control: ControlConfig = ControlConfig(),
     val controlParams: ControlParamsConfig = ControlParamsConfig(),
-    val failSafe: FailSafeConfig = FailSafeConfig()
+    val failSafe: FailSafeConfig = FailSafeConfig(),
+    val auth: AuthConfig = AuthConfig(),
+    val ble: BleConfig = BleConfig()
 ) {
     companion object {
         private val json = Json {
@@ -51,4 +53,44 @@ data class ControlParamsConfig(
 data class FailSafeConfig(
     @SerialName("gamepad_timeout_ms") val gamepadTimeoutMs: Long = 500L,
     @SerialName("stale_packet_ms") val stalePacketMs: Long = 300L
+)
+
+/**
+ * 认证配置
+ *
+ * 控制三步认证、心跳保活、断线重连的参数
+ */
+@Serializable
+data class AuthConfig(
+    /** 单步认证超时（毫秒） */
+    @SerialName("timeout_ms") val timeoutMs: Long = 5000,
+    /** 认证重试次数 */
+    @SerialName("retry_count") val retryCount: Int = 3,
+    /** 心跳发送间隔（毫秒） */
+    @SerialName("heartbeat_interval_ms") val heartbeatIntervalMs: Long = 1000,
+    /** 心跳超时判定断线（毫秒） */
+    @SerialName("heartbeat_timeout_ms") val heartbeatTimeoutMs: Long = 5000,
+    /** 重连等待时间（毫秒） */
+    @SerialName("reconnect_delay_ms") val reconnectDelayMs: Long = 2000,
+    /** 最大重连次数 */
+    @SerialName("reconnect_max_count") val reconnectMaxCount: Int = 5
+)
+
+/**
+ * BLE 配置
+ *
+ * 控制 BLE 连接参数
+ */
+@Serializable
+data class BleConfig(
+    /** BLE 服务 UUID */
+    @SerialName("service_uuid") val serviceUuid: String = "0000fff0-0000-1000-8000-00805f9b34fb",
+    /** TX 特征 UUID（客户端写入） */
+    @SerialName("tx_characteristic_uuid") val txCharacteristicUuid: String = "0000fff1-0000-1000-8000-00805f9b34fb",
+    /** RX 特征 UUID（客户端接收通知） */
+    @SerialName("rx_characteristic_uuid") val rxCharacteristicUuid: String = "0000fff2-0000-1000-8000-00805f9b34fb",
+    /** 扫描超时（毫秒） */
+    @SerialName("scan_timeout_ms") val scanTimeoutMs: Long = 10000,
+    /** 请求的 MTU 大小 */
+    @SerialName("mtu_size") val mtuSize: Int = 512
 )

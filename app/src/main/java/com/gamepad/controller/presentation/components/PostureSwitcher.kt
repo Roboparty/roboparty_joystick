@@ -1,5 +1,8 @@
 package com.gamepad.controller.presentation.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,6 +19,10 @@ import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,7 +37,7 @@ import com.gamepad.controller.domain.model.PostureMode
 /**
  * 姿态切换面板 — 左侧上部，卡片样式
  *
- * 标题 + 图标 + 分段控制器（站起 / 坐下 / 待机）
+ * 默认折叠，只显示标题；点击展开分段控制器（站起 / 坐下 / 待机）
  */
 @Composable
 fun PostureSwitcher(
@@ -38,12 +45,15 @@ fun PostureSwitcher(
     onPostureChanged: (PostureMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .shadow(4.dp, RoundedCornerShape(16.dp))
             .clip(RoundedCornerShape(16.dp))
             .background(Color.White)
-            .padding(16.dp)
+            .clickable { expanded = !expanded }
+            .padding(8.dp)
     ) {
         // 标题行：图标 + 文字
         Row(
@@ -64,39 +74,47 @@ fun PostureSwitcher(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 分段控制器
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFFF5F5F5))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        // 分段控制器 — 展开时显示
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
         ) {
-            PostureMode.entries.forEach { mode ->
-                val isSelected = mode == currentPosture
-                Box(
+            Column {
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
                     modifier = Modifier
-                        .width(72.dp)
-                        .height(36.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            if (isSelected) Brush.linearGradient(
-                                colors = listOf(Color(0xFF2D7FF9), Color(0xFF6C5CE7))
-                            ) else Brush.linearGradient(
-                                colors = listOf(Color.Transparent, Color.Transparent)
-                            )
-                        )
-                        .clickable { onPostureChanged(mode) },
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0xFFF5F5F5))
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Text(
-                        text = mode.label,
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) Color.White else Color(0xFF1A1A2E)
-                    )
+                    PostureMode.entries.forEach { mode ->
+                        val isSelected = mode == currentPosture
+                        Box(
+                            modifier = Modifier
+                                .width(72.dp)
+                                .height(36.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    if (isSelected) Brush.linearGradient(
+                                        colors = listOf(Color(0xFF2D7FF9), Color(0xFF6C5CE7))
+                                    ) else Brush.linearGradient(
+                                        colors = listOf(Color.Transparent, Color.Transparent)
+                                    )
+                                )
+                                .clickable { onPostureChanged(mode) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = mode.label,
+                                fontSize = 13.sp,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (isSelected) Color.White else Color(0xFF1A1A2E)
+                            )
+                        }
+                    }
                 }
             }
         }

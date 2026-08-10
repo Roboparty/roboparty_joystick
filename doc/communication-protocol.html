@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手柄控制器通信协议文档</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .section h2 {
+            color: #1a1a2e;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        .section h3 {
+            color: #16213e;
+            font-size: 1.4em;
+            margin: 20px 0 10px 0;
+        }
+        .flow-diagram {
+            background: #1a1a2e;
+            color: #00ff88;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.4;
+        }
+        .json-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        .json-key { color: #66d9ef; }
+        .json-string { color: #e6db74; }
+        .json-number { color: #ae81ff; }
+        .json-boolean { color: #f92672; }
+        .json-null { color: #75715e; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .state-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .state-disconnected { background: #6c757d; color: white; }
+        .state-connecting { background: #ffc107; color: #333; }
+        .state-authenticating { background: #17a2b8; color: white; }
+        .state-connected { background: #28a745; color: white; }
+        .state-lost { background: #dc3545; color: white; }
+        .state-reconnecting { background: #fd7e14; color: white; }
+        .state-failed { background: #dc3545; color: white; }
+        .arrow {
+            color: #667eea;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        .example-box {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+        .example-title {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border: 3px solid #667eea;
+            border-radius: 50%;
+        }
+        .timestamp {
+            color: #6c757d;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .packet-direction {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .direction-send { background: #d4edda; color: #155724; }
+        .direction-recv { background: #cce5ff; color: #004085; }
+        footer {
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        }
+        @media (max-width: 768px) {
+            .content { padding: 20px; }
+            .section { padding: 20px; }
+            header { padding: 20px; }
+            header h1 { font-size: 1.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 手柄控制器通信协议</h1>
+            <p>三步认证 + Token 会话 + 心跳保活</p>
+        </header>
+
+        <div class="content">
+            <!-- 一、协议概述 -->
+            <div class="section">
+                <h2>📋 一、协议概述</h2>
+                <p>手柄控制器与服务器之间采用 <strong>UDP 协议</strong>通信，实现以下核心功能：</p>
+                <ul>
+                    <li><span class="step-number">1</span><strong>三步认证</strong> - HMAC-SHA256 签名验证设备身份</li>
+                    <li><span class="step-number">2</span><strong>Token 会话</strong> - 认证后获取 Token，后续通信携带</li>
+                    <li><span class="step-number">3</span><strong>高频控制</strong> - 50Hz 发送摇杆/按键数据</li>
+                    <li><span class="step-number">4</span><strong>心跳保活</strong> - 每秒发送心跳检测连接状态</li>
+                    <li><span class="step-number">5</span><strong>断线重连</strong> - 自动检测断线并尝试重连</li>
+                </ul>
+            </div>
+
+            <!-- 二、三步认证流程 -->
+            <div class="section">
+                <h2>🔐 二、三步认证流程</h2>
+
+                <h3>2.1 流程图</h3>
+                <div class="flow-diagram">
+客户端 (手柄)                              服务器 (机器人)
+    │                                           │
+    │  ① AuthRequest                            │
+    │  { device_id, device_name }               │
+    ├──────────────────────────────────────────→│
+    │                                           │
+    │  ② Challenge                              │
+    │  { challenge_code, timestamp }            │
+    │←──────────────────────────────────────────┤
+    │                                           │
+    │  [计算 HMAC-SHA256(device_id:challenge)]  │
+    │                                           │
+    │  ③ ChallengeResponse                      │
+    │  { device_id, signature }                 │
+    ├──────────────────────────────────────────→│
+    │                                           │
+    │  [验证签名，生成 Token]                    │
+    │                                           │
+    │  ④ AuthResult                             │
+    │  { ok: true, token, expires_at }          │
+    │←──────────────────────────────────────────┤
+    │                                           │
+    │  进入 CONNECTED 状态                      │
+    │  保存 Token                               │
+    │                                           │
+    │  ⑤ ControlPacket (50Hz)                   │
+    │  { token, timestamp, sequence, ... }      │
+    ├──────────────────────────────────────────→│
+    │                                           │
+    │  ⑥ Heartbeat (每秒)                       │
+    │  { token, timestamp }                     │
+    ├──────────────────────────────────────────→│
+    │                                           │</div>
+
+                <h3>2.2 签名算法</h3>
+                <div class="highlight">
+                    <strong>HMAC-SHA256 签名计算：</strong><br>
+                    输入：<code>deviceId:challengeCode</code><br>
+                    密钥：预共享密钥（SECRET_KEY）<br>
+                    输出：十六进制签名字符串（小写）
+                </div>
+                <div class="json-block">
+<span class="json-key">// 签名示例</span>
+输入: "android-abc123:a1b2c3d4e5f6"
+密钥: "your-pre-shared-secret-key"
+输出: "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3..."</div>
+            </div>
+
+            <!-- 三、数据包格式 -->
+            <div class="section">
+                <h2>📦 三、数据包格式</h2>
+
+                <h3>3.1 认证请求 (AuthRequest)</h3>
+                <div class="example-box">
+                    <div class="example-title">客户端 → 服务器</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"auth_request"</span>,
+  <span class="json-key">"device_id"</span>: <span class="json-string">"android-abc123"</span>,
+  <span class="json-key">"device_name"</span>: <span class="json-string">"Xbox Controller"</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999999</span>
+}</div>
+                </div>
+
+                <h3>3.2 挑战码 (Challenge)</h3>
+                <div class="example-box">
+                    <div class="example-title">服务器 → 客户端</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"challenge"</span>,
+  <span class="json-key">"challenge_code"</span>: <span class="json-string">"a1b2c3d4e5f67890abcdef1234567890"</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999999</span>
+}</div>
+                </div>
+
+                <h3>3.3 挑战响应 (ChallengeResponse)</h3>
+                <div class="example-box">
+                    <div class="example-title">客户端 → 服务器</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"challenge_response"</span>,
+  <span class="json-key">"device_id"</span>: <span class="json-string">"android-abc123"</span>,
+  <span class="json-key">"signature"</span>: <span class="json-string">"7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3..."</span>
+}</div>
+                </div>
+
+                <h3>3.4 认证结果 (AuthResult)</h3>
+                <div class="example-box">
+                    <div class="example-title">服务器 → 客户端</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"auth_result"</span>,
+  <span class="json-key">"ok"</span>: <span class="json-boolean">true</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="json-key">"expires_at"</span>: <span class="json-number">1700003599999</span>,
+  <span class="json-key">"reason"</span>: <span class="json-string">""</span>
+}</div>
+                </div>
+
+                <h3>3.5 控制指令 (ControlPacket)</h3>
+                <div class="example-box">
+                    <div class="example-title">客户端 → 服务器 (50Hz)</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"control"</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999999</span>,
+  <span class="json-key">"sequence"</span>: <span class="json-number">1</span>,
+  <span class="json-key">"left_stick_x"</span>: <span class="json-number">0.5</span>,
+  <span class="json-key">"left_stick_y"</span>: <span class="json-number">-0.3</span>,
+  <span class="json-key">"right_stick_x"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"right_stick_y"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"btn_a"</span>: <span class="json-boolean">true</span>,
+  <span class="json-key">"btn_b"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_x"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_y"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_up"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_down"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_left"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_right"</span>: <span class="json-boolean">false</span>
+}</div>
+                </div>
+
+                <h3>3.6 心跳 (Heartbeat)</h3>
+                <div class="example-box">
+                    <div class="example-title">客户端 → 服务器 (每秒)</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"heartbeat"</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999999</span>
+}</div>
+                </div>
+            </div>
+
+            <!-- 四、字段说明 -->
+            <div class="section">
+                <h2>📝 四、字段说明</h2>
+
+                <h3>4.1 ControlPacket 字段</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>字段</th>
+                            <th>类型</th>
+                            <th>范围</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>type</code></td>
+                            <td>String</td>
+                            <td>"control"</td>
+                            <td>数据包类型标识</td>
+                        </tr>
+                        <tr>
+                            <td><code>token</code></td>
+                            <td>String</td>
+                            <td>-</td>
+                            <td>认证令牌（三步认证后获取）</td>
+                        </tr>
+                        <tr>
+                            <td><code>timestamp</code></td>
+                            <td>Long</td>
+                            <td>毫秒</td>
+                            <td>发送时间戳</td>
+                        </tr>
+                        <tr>
+                            <td><code>sequence</code></td>
+                            <td>Long</td>
+                            <td>单调递增</td>
+                            <td>序列号，用于丢包检测</td>
+                        </tr>
+                        <tr>
+                            <td><code>left_stick_x</code></td>
+                            <td>Float</td>
+                            <td>[-1.0, 1.0]</td>
+                            <td>左摇杆水平轴（右为正）</td>
+                        </tr>
+                        <tr>
+                            <td><code>left_stick_y</code></td>
+                            <td>Float</td>
+                            <td>[-1.0, 1.0]</td>
+                            <td>左摇杆垂直轴（下为正）</td>
+                        </tr>
+                        <tr>
+                            <td><code>right_stick_x</code></td>
+                            <td>Float</td>
+                            <td>[-1.0, 1.0]</td>
+                            <td>右摇杆水平轴（右为正）</td>
+                        </tr>
+                        <tr>
+                            <td><code>right_stick_y</code></td>
+                            <td>Float</td>
+                            <td>[-1.0, 1.0]</td>
+                            <td>右摇杆垂直轴（下为正）</td>
+                        </tr>
+                        <tr>
+                            <td><code>btn_a/b/x/y</code></td>
+                            <td>Boolean</td>
+                            <td>true/false</td>
+                            <td>ABXY 按钮状态</td>
+                        </tr>
+                        <tr>
+                            <td><code>dpad_*</code></td>
+                            <td>Boolean</td>
+                            <td>true/false</td>
+                            <td>方向键状态</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 五、连接状态机 -->
+            <div class="section">
+                <h2>🔄 五、连接状态机</h2>
+
+                <h3>5.1 状态说明</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>状态</th>
+                            <th>说明</th>
+                            <th>UI 显示</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="state-badge state-disconnected">DISCONNECTED</span></td>
+                            <td>未连接，初始状态</td>
+                            <td>未连接</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-connecting">CONNECTING</span></td>
+                            <td>正在建立 UDP 连接</td>
+                            <td>连接中...</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-authenticating">AUTHENTICATING</span></td>
+                            <td>正在进行三步认证</td>
+                            <td>认证中...</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-connected">CONNECTED</span></td>
+                            <td>已连接，正常通信</td>
+                            <td>已连接</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-lost">LOST</span></td>
+                            <td>连接丢失（心跳超时）</td>
+                            <td>连接断开</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-reconnecting">RECONNECTING</span></td>
+                            <td>正在尝试重连</td>
+                            <td>重连中...</td>
+                        </tr>
+                        <tr>
+                            <td><span class="state-badge state-failed">FAILED</span></td>
+                            <td>连接失败（不可恢复）</td>
+                            <td>连接失败</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>5.2 状态转换图</h3>
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                         连接状态机                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  DISCONNECTED                                                   │
+│      │                                                          │
+│      │ connect()                                                │
+│      ▼                                                          │
+│  CONNECTING                                                     │
+│      │                                                          │
+│      │ 发送 AuthRequest                                         │
+│      ▼                                                          │
+│  AUTHENTICATING                                                 │
+│      │                                                          │
+│      ├─ 收到 Challenge → 计算签名 → 发送 ChallengeResponse      │
+│      │                                                          │
+│      ├─ 收到 AuthResult(ok=true) ──→ CONNECTED                 │
+│      │                                                          │
+│      ├─ 收到 AuthResult(ok=false) ──→ FAILED                   │
+│      │                                                          │
+│      └─ 超时/重试耗尽 ──→ FAILED                                │
+│                                                                 │
+│  CONNECTED ←───────────────────────────────────────────┐        │
+│      │                                                 │        │
+│      │ 心跳超时                                        │        │
+│      ▼                                                 │        │
+│  LOST                                                  │        │
+│      │                                                 │        │
+│      │ 自动触发                                        │        │
+│      ▼                                                 │        │
+│  RECONNECTING ── 重连失败(>max) ──→ FAILED            │        │
+│      │                                                 │        │
+│      │ 重连成功（重新三步认证）                         │        │
+│      └─────────────────────────────────────────────────┘        │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <!-- 六、UI 界面设计 -->
+            <div class="section">
+                <h2>🖥️ 六、UI 界面设计</h2>
+
+                <h3>6.1 控制面板布局</h3>
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│  控制面板                                           [关闭]  │
+├─────────────────────────────────────────────────────────────┤
+│  ⚠ 紧急停机 [滑动条================================>] 已触发│
+├─────────────────────────────────────────────────────────────┤
+│  [功能清单] [告警列表] [电机状态] [IMU数据]                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 电机列表（点击查看详情）                              │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ ● 左电机    转速: 100RPM  电流: 1.5A  温度: 35°C    │   │
+│  │ ● 右电机    转速: 100RPM  电流: 1.5A  温度: 35°C    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</div>
+
+                <h3>6.2 电机详情弹窗</h3>
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│  电机详情 - 左电机                                    [关闭]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 状态概览                                             │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │         ✓                                           │   │
+│  │       正常                                           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 运行数据                                             │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ 转速:          100 RPM                              │   │
+│  │ 电流:          1.50 A                               │   │
+│  │ 温度:          35.0°C                               │   │
+│  │ 编码器值:      12345                                │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 错误信息                                             │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ 错误码:        0x0000 (无错误)                       │   │
+│  │ 错误描述:      无错误                               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 错误信息                                             │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ 错误码:        0x0000 (无错误)                       │   │
+│  │ 错误描述:      无错误                               │   │
+│  │ 处理建议:      -                                    │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</div>
+
+                <h3>6.3 IMU 数据列表</h3>
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│  控制面板                                           [关闭]  │
+├─────────────────────────────────────────────────────────────┤
+│  ⚠ 紧急停机 [滑动条================================>] 已触发│
+├─────────────────────────────────────────────────────────────┤
+│  [功能清单] [告警列表] [电机状态] [IMU数据]                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 姿态角（点击查看详情）                               │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ 俯仰 (Pitch):   2.0°                                │   │
+│  │ 横滚 (Roll):    2.0°                                │   │
+│  │ 偏航 (Yaw):     180.0°                              │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 加速度 (m/s²)（点击查看详情）                        │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ X:  0.10    Y:  0.10    Z:  9.80                   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 角速度 (°/s)（点击查看详情）                         │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ X:  0.50    Y:  0.50    Z:  0.20                   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</div>
+
+                <h3>6.4 IMU 详情弹窗</h3>
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│  IMU 数据详情                                          [关闭] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 姿态角 (Attitude)                                    │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ 俯仰角 (Pitch):   2.0°      [=====■=======]         │   │
+│  │ 横滚角 (Roll):    2.0°      [=====■=======]         │   │
+│  │ 偏航角 (Yaw):     180.0°    [=============■]        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 加速度 (m/s²)                                        │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ X:  0.10    Y:  0.10    Z:  9.80                   │   │
+│  │ 合加速度:     9.80 m/s²                             │   │
+│  │ 重力偏差:     0.00 m/s² ✓                           │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 角速度 (°/s)                                         │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ X:  0.50    Y:  0.50    Z:  0.20                   │   │
+│  │ 合角速度:     0.73 °/s                              │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 磁场 (uT)                                            │   │
+│  ├─────────────────────────────────────────────────────┤   │
+│  │ X:  25.0    Y: -10.0    Z:  40.0                   │   │
+│  │ 合磁场强度:   48.5 uT                               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</div>
+            </div>
+
+            <!-- 七、通信时序示例 -->
+            <div class="section">
+                <h2>⏱️ 七、通信时序示例</h2>
+
+                <h3>7.1 完整认证流程示例</h3>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timestamp">T+0ms</div>
+                        <strong>发送 AuthRequest</strong>
+                        <span class="packet-direction direction-send">SEND</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"auth_request"</span>,
+  <span class="json-key">"device_id"</span>: <span class="json-string">"android-a1b2c3d4"</span>,
+  <span class="json-key">"device_name"</span>: <span class="json-string">"Xbox Controller"</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999000</span>
+}</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+15ms</div>
+                        <strong>接收 Challenge</strong>
+                        <span class="packet-direction direction-recv">RECV</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"challenge"</span>,
+  <span class="json-key">"challenge_code"</span>: <span class="json-string">"e4d9f3b2a1c876543210fedcba987654"</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999015</span>
+}</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+16ms</div>
+                        <strong>计算签名</strong>
+                        <div class="highlight">
+                            输入: "android-a1b2c3d4:e4d9f3b2a1c876543210fedcba987654"<br>
+                            签名: "b3a8f2c1d4e56789012345678901234567890abcdef..."
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+17ms</div>
+                        <strong>发送 ChallengeResponse</strong>
+                        <span class="packet-direction direction-send">SEND</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"challenge_response"</span>,
+  <span class="json-key">"device_id"</span>: <span class="json-string">"android-a1b2c3d4"</span>,
+  <span class="json-key">"signature"</span>: <span class="json-string">"b3a8f2c1d4e56789012345678901234567890abcdef..."</span>
+}</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+30ms</div>
+                        <strong>接收 AuthResult</strong>
+                        <span class="packet-direction direction-recv">RECV</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"auth_result"</span>,
+  <span class="json-key">"ok"</span>: <span class="json-boolean">true</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VfaWQiOiJhbmRyb2lkLWExYjJjM2Q0IiwiZXhwIjoxNzAwMDAzNTk5fQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"</span>,
+  <span class="json-key">"expires_at"</span>: <span class="json-number">1700003599999</span>,
+  <span class="json-key">"reason"</span>: <span class="json-string">""</span>
+}</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+31ms</div>
+                        <strong>✅ 认证成功，进入 CONNECTED 状态</strong>
+                    </div>
+                </div>
+
+                <h3>6.2 正常控制流示例</h3>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timestamp">T+100ms</div>
+                        <strong>发送 ControlPacket</strong>
+                        <span class="packet-direction direction-send">SEND</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"control"</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999100</span>,
+  <span class="json-key">"sequence"</span>: <span class="json-number">1</span>,
+  <span class="json-key">"left_stick_x"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"left_stick_y"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"right_stick_x"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"right_stick_y"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"btn_a"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_b"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_x"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_y"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_up"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_down"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_left"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_right"</span>: <span class="json-boolean">false</span>
+}</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+120ms</div>
+                        <strong>发送 ControlPacket（摇杆推动）</strong>
+                        <span class="packet-direction direction-send">SEND</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"control"</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999120</span>,
+  <span class="json-key">"sequence"</span>: <span class="json-number">2</span>,
+  <span class="json-key">"left_stick_x"</span>: <span class="json-number">0.75</span>,  <span class="json-key">// 右推</span>
+  <span class="json-key">"left_stick_y"</span>: <span class="json-number">-0.5</span>, <span class="json-key">// 上推</span>
+  <span class="json-key">"right_stick_x"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"right_stick_y"</span>: <span class="json-number">0.0</span>,
+  <span class="json-key">"btn_a"</span>: <span class="json-boolean">true</span>,   <span class="json-key">// A键按下</span>
+  <span class="json-key">"btn_b"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_x"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"btn_y"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_up"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_down"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_left"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"dpad_right"</span>: <span class="json-boolean">false</span>
+}</div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timestamp">T+200ms</div>
+                        <strong>发送 Heartbeat</strong>
+                        <span class="packet-direction direction-send">SEND</span>
+                        <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"heartbeat"</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999200</span>
+}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 七、错误处理 -->
+            <div class="section">
+                <h2>⚠️ 七、错误处理</h2>
+
+                <h3>7.1 认证失败</h3>
+                <div class="example-box">
+                    <div class="example-title">AuthResult (失败)</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"auth_result"</span>,
+  <span class="json-key">"ok"</span>: <span class="json-boolean">false</span>,
+  <span class="json-key">"token"</span>: <span class="json-string">""</span>,
+  <span class="json-key">"expires_at"</span>: <span class="json-number">0</span>,
+  <span class="json-key">"reason"</span>: <span class="json-string">"Invalid signature"</span>
+}</div>
+                </div>
+
+                <h3>7.2 重连机制</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>配置项</th>
+                            <th>默认值</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>timeout_ms</code></td>
+                            <td>5000</td>
+                            <td>单步认证超时（毫秒）</td>
+                        </tr>
+                        <tr>
+                            <td><code>retry_count</code></td>
+                            <td>3</td>
+                            <td>认证重试次数</td>
+                        </tr>
+                        <tr>
+                            <td><code>heartbeat_interval_ms</code></td>
+                            <td>500</td>
+                            <td>心跳发送间隔（毫秒）- 2Hz</td>
+                        </tr>
+                        <tr>
+                            <td><code>heartbeat_timeout_ms</code></td>
+                            <td>5000</td>
+                            <td>心跳超时判定断线（毫秒）</td>
+                        </tr>
+                        <tr>
+                            <td><code>reconnect_delay_ms</code></td>
+                            <td>2000</td>
+                            <td>重连等待时间（毫秒）</td>
+                        </tr>
+                        <tr>
+                            <td><code>reconnect_max_count</code></td>
+                            <td>5</td>
+                            <td>最大重连次数</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 八、带宽计算 -->
+            <div class="section">
+                <h2>📊 八、带宽计算</h2>
+
+                <h3>8.1 单个数据包大小</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>数据包类型</th>
+                            <th>JSON 大小</th>
+                            <th>UDP 开销</th>
+                            <th>总大小</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ControlPacket</td>
+                            <td>~300 字节</td>
+                            <td>46 字节</td>
+                            <td>~350 字节</td>
+                        </tr>
+                        <tr>
+                            <td>Heartbeat</td>
+                            <td>~150 字节</td>
+                            <td>46 字节</td>
+                            <td>~200 字节</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>8.2 带宽需求</h3>
+                <div class="highlight">
+                    <strong>控制流（50Hz）：</strong>350 字节 × 50 = 17,500 字节/秒 = <strong>140 kbps</strong><br>
+                    <strong>心跳（2Hz）：</strong>200 字节 × 2 = 400 字节/秒 = <strong>3.2 kbps</strong><br>
+                    <strong>总计：</strong>约 <strong>143.2 kbps</strong>（0.14 Mbps）
+                </div>
+
+                <h3>8.3 周期配置说明</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>报文类型</th>
+                            <th>频率</th>
+                            <th>周期</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>ControlPacket</td>
+                            <td>50Hz</td>
+                            <td>20ms</td>
+                            <td>游戏手柄标准刷新率</td>
+                        </tr>
+                        <tr>
+                            <td>Heartbeat</td>
+                            <td>2Hz</td>
+                            <td>500ms</td>
+                            <td>快速检测断线，允许 10 次丢包</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 九、遥测数据接口 -->
+            <div class="section">
+                <h2>📊 九、遥测数据接口</h2>
+
+                <h3>9.1 电机状态 (motors)</h3>
+                <div class="example-box">
+                    <div class="example-title">服务器 → 客户端 (10Hz)</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"motors"</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999999</span>,
+  <span class="json-key">"left_speed"</span>: <span class="json-number">100.0</span>,
+  <span class="json-key">"left_current"</span>: <span class="json-number">1.5</span>,
+  <span class="json-key">"left_temp"</span>: <span class="json-number">35.0</span>,
+  <span class="json-key">"left_encoder"</span>: <span class="json-number">12345</span>,
+  <span class="json-key">"right_speed"</span>: <span class="json-number">100.0</span>,
+  <span class="json-key">"right_current"</span>: <span class="json-number">1.5</span>,
+  <span class="json-key">"right_temp"</span>: <span class="json-number">35.0</span>,
+  <span class="json-key">"right_encoder"</span>: <span class="json-number">12345</span>,
+  <span class="json-key">"motor_error"</span>: <span class="json-number">0</span>
+}</div>
+                </div>
+
+                <h3>电机错误码定义</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>错误码</th>
+                            <th>十六进制</th>
+                            <th>含义</th>
+                            <th>处理建议</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>0</td><td>0x0000</td><td>无错误</td><td>-</td></tr>
+                        <tr><td>1</td><td>0x0001</td><td>过温保护</td><td>降低负载，等待冷却</td></tr>
+                        <tr><td>2</td><td>0x0002</td><td>过流保护</td><td>检查负载，重启电机</td></tr>
+                        <tr><td>3</td><td>0x0003</td><td>过压保护</td><td>检查电源</td></tr>
+                        <tr><td>4</td><td>0x0004</td><td>欠压保护</td><td>检查电池</td></tr>
+                        <tr><td>5</td><td>0x0005</td><td>堵转保护</td><td>清除障碍物</td></tr>
+                        <tr><td>6</td><td>0x0006</td><td>编码器故障</td><td>检查编码器连接</td></tr>
+                        <tr><td>7</td><td>0x0007</td><td>通信超时</td><td>检查通信线缆</td></tr>
+                        <tr><td>8</td><td>0x0008</td><td>驱动器故障</td><td>更换驱动器</td></tr>
+                    </tbody>
+                </table>
+
+                <h3>9.2 IMU 数据 (imu)</h3>
+                <div class="example-box">
+                    <div class="example-title">服务器 → 客户端 (50Hz)</div>
+                    <div class="json-block">{
+  <span class="json-key">"type"</span>: <span class="json-string">"imu"</span>,
+  <span class="json-key">"timestamp"</span>: <span class="json-number">1699999999999</span>,
+  <span class="json-key">"accel_x"</span>: <span class="json-number">0.1</span>,
+  <span class="json-key">"accel_y"</span>: <span class="json-number">0.1</span>,
+  <span class="json-key">"accel_z"</span>: <span class="json-number">9.8</span>,
+  <span class="json-key">"gyro_x"</span>: <span class="json-number">0.5</span>,
+  <span class="json-key">"gyro_y"</span>: <span class="json-number">0.5</span>,
+  <span class="json-key">"gyro_z"</span>: <span class="json-number">0.2</span>,
+  <span class="json-key">"roll"</span>: <span class="json-number">2.0</span>,
+  <span class="json-key">"pitch"</span>: <span class="json-number">2.0</span>,
+  <span class="json-key">"yaw"</span>: <span class="json-number">180.0</span>,
+  <span class="json-key">"mag_x"</span>: <span class="json-number">25.0</span>,
+  <span class="json-key">"mag_y"</span>: <span class="json-number">-10.0</span>,
+  <span class="json-key">"mag_z"</span>: <span class="json-number">40.0</span>,
+  <span class="json-key">"imu_error"</span>: <span class="json-number">0</span>
+}</div>
+                </div>
+
+                <h3>IMU 字段说明</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>字段</th>
+                            <th>类型</th>
+                            <th>单位</th>
+                            <th>说明</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>accel_x/y/z</td><td>Float</td><td>m/s²</td><td>三轴加速度</td></tr>
+                        <tr><td>gyro_x/y/z</td><td>Float</td><td>°/s</td><td>三轴角速度</td></tr>
+                        <tr><td>roll</td><td>Float</td><td>度</td><td>横滚角</td></tr>
+                        <tr><td>pitch</td><td>Float</td><td>度</td><td>俯仰角</td></tr>
+                        <tr><td>yaw</td><td>Float</td><td>度</td><td>偏航角</td></tr>
+                        <tr><td>mag_x/y/z</td><td>Float</td><td>uT</td><td>三轴磁场</td></tr>
+                        <tr><td>imu_error</td><td>Int</td><td>-</td><td>IMU 错误码（0=无错误）</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 十一、BLE 蓝牙通信 -->
+            <div class="section">
+                <h2>📶 十一、BLE 蓝牙通信协议</h2>
+
+                <h3>11.1 BLE 服务定义</h3>
+                <div class="flow-diagram">
+Service UUID:        0000fff0-0000-1000-8000-00805f9b34fb
+├── TX Characteristic: 0000fff1-0000-1000-8000-00805f9b34fb  (客户端写入 → 机器人)
+└── RX Characteristic: 0000fff2-0000-1000-8000-00805f9b34fb  (机器人通知 → 客户端)</div>
+
+                <h3>11.2 BLE 连接流程</h3>
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────────────────────┐
+│                     BLE 连接流程                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ① 扫描 BLE 设备（按 Service UUID 过滤）                    │
+│       ↓                                                     │
+│  ② 选择目标设备并连接                                       │
+│       ↓                                                     │
+│  ③ 发现服务和特征                                           │
+│       ↓                                                     │
+│  ④ 订阅 RX Characteristic 通知                              │
+│       ↓                                                     │
+│  ⑤ 协商 MTU（建议 512 字节）                                │
+│       ↓                                                     │
+│  ⑥ 执行三步认证（与 UDP 相同）                              │
+│       ↓                                                     │
+│  ⑦ 进入正常通信模式                                         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</div>
+
+                <h3>11.3 BLE vs UDP 对比</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>UDP</th>
+                            <th>BLE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>传输距离</td>
+                            <td>局域网（WiFi）</td>
+                            <td>10-50 米</td>
+                        </tr>
+                        <tr>
+                            <td>连接方式</td>
+                            <td>需要知道 IP 地址</td>
+                            <td>自动扫描发现</td>
+                        </tr>
+                        <tr>
+                            <td>传输速率</td>
+                            <td>高（>1Mbps）</td>
+                            <td>中（~100Kbps）</td>
+                        </tr>
+                        <tr>
+                            <td>功耗</td>
+                            <td>高</td>
+                            <td>低</td>
+                        </tr>
+                        <tr>
+                            <td>延迟</td>
+                            <td>低（<10ms）</td>
+                            <td>中（~30ms）</td>
+                        </tr>
+                        <tr>
+                            <td>适用场景</td>
+                            <td>固定网络环境</td>
+                            <td>快速配对、移动场景</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>11.4 BLE 数据分包协议</h3>
+                <div class="highlight">
+                    <strong>单包格式</strong>（数据 ≤ MTU-3 字节）：<br>
+                    直接发送 JSON 字符串的 UTF-8 字节
+                </div>
+                <div class="highlight">
+                    <strong>分包格式</strong>（数据 > MTU-3 字节）：<br>
+                    <code>| 包头 (2字节) | 包序号 (1字节) | 总包数 (1字节) | 数据 (变长) |</code><br>
+                    <code>| 0xAA 0x55   | 0x00~0xFF     | 0x00~0xFF     | JSON 字节   |</code>
+                </div>
+            </div>
+
+            <!-- 十二、测试服务器 -->
+            <div class="section">
+                <h2>🧪 十二、测试服务器示例</h2>
+
+                <h3>12.1 Python 模拟服务器</h3>
+                <div class="json-block">
+<span class="json-key">#!/usr/bin/env python3</span>
+import socket, json, hmac, hashlib
+
+SECRET = b"your-pre-shared-secret-key"
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(("0.0.0.0", 9000))
+print("Server listening on port 9000...")
+
+while True:
+    data, addr = sock.recvfrom(1024)
+    msg = json.loads(data)
+    print(f"Received from {addr}: {msg}")
+
+    if msg["type"] == "auth_request":
+        <span class="json-key"># ② 下发挑战码</span>
+        challenge = {
+            "type": "challenge",
+            "challenge_code": "random1234567890abcdef",
+            "timestamp": int(time.time() * 1000)
+        }
+        sock.sendto(json.dumps(challenge).encode(), addr)
+        print(f"Sent challenge to {addr}")
+
+    elif msg["type"] == "challenge_response":
+        <span class="json-key"># ④ 验证签名</span>
+        expected = hmac.new(
+            SECRET,
+            f'{msg["device_id"]}:random1234567890abcdef'.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        if msg["signature"] == expected:
+            result = {
+                "type": "auth_result",
+                "ok": True,
+                "token": "test-token-xxx",
+                "expires_at": int(time.time() * 1000) + 3600000
+            }
+        else:
+            result = {
+                "type": "auth_result",
+                "ok": False,
+                "reason": "Invalid signature"
+            }
+        sock.sendto(json.dumps(result).encode(), addr)
+        print(f"Sent auth result: {result['ok']}")
+
+    elif msg["type"] == "control":
+        print(f"Control: seq={msg['sequence']}, "
+              f"left=({msg['left_stick_x']:.2f}, {msg['left_stick_y']:.2f}), "
+              f"btn_a={msg['btn_a']}")
+
+    elif msg["type"] == "heartbeat":
+        <span class="json-key"># 回复心跳</span>
+        sock.sendto(json.dumps({"type": "heartbeat"}).encode(), addr)</div>
+            </div>
+        </div>
+
+        <footer>
+            <p>手柄控制器通信协议文档 v1.1 | 更新时间：2026-07-27 | 新增 BLE 蓝牙通信</p>
+        </footer>
+    </div>
+</body>
+</html>
