@@ -166,12 +166,17 @@ fun MainScreen(viewModel: RobotControlViewModel) {
 
             // ---- 设置面板（屏幕下半部分） ----
             if (showSettings) {
+                val otaState by viewModel.otaState.collectAsState()
                 SettingsPanel(
                     onBack = { showSettings = false },
                     onEstopChanged = { enabled ->
                         if (enabled) viewModel.sendIntent(UiIntent.Estop)
                         else viewModel.sendIntent(UiIntent.EstopRelease)
                     },
+                    otaState = otaState,
+                    onCheckOtaUpdate = { viewModel.checkOtaUpdate() },
+                    onDownloadOta = { viewModel.downloadOtaApk() },
+                    onInstallOta = { viewModel.installOtaApk() },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 19.dp)

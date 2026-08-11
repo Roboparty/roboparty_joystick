@@ -23,7 +23,8 @@ import androidx.compose.material.icons.filled.NetworkWifi
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SettingsVoice
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,10 +41,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gamepad.controller.domain.model.OtaState
 import com.gamepad.controller.presentation.components.settings.AboutSettings
 import com.gamepad.controller.presentation.components.settings.AuthPasswordSettings
 import com.gamepad.controller.presentation.components.settings.MotionSettings
 import com.gamepad.controller.presentation.components.settings.NetworkSettings
+import com.gamepad.controller.presentation.components.settings.OtaSettings
 import com.gamepad.controller.presentation.components.settings.VoiceSettings
 import com.gamepad.controller.presentation.components.settings.VolumeSettings
 
@@ -65,6 +68,10 @@ private data class SettingsNavItem(
 fun SettingsPanel(
     onBack: () -> Unit,
     onEstopChanged: (Boolean) -> Unit,
+    otaState: OtaState = OtaState(),
+    onCheckOtaUpdate: () -> Unit = {},
+    onDownloadOta: () -> Unit = {},
+    onInstallOta: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var selectedNavIndex by remember { mutableStateOf(0) }
@@ -74,8 +81,9 @@ fun SettingsPanel(
         SettingsNavItem(Icons.Filled.Key, "授权密码"),
         SettingsNavItem(Icons.Filled.Speed, "运动"),
         SettingsNavItem(Icons.Filled.SettingsVoice, "语音"),
-        SettingsNavItem(Icons.Filled.VolumeUp, "音量"),
+        SettingsNavItem(Icons.AutoMirrored.Filled.VolumeUp, "音量"),
         SettingsNavItem(Icons.Filled.Info, "关于"),
+        SettingsNavItem(Icons.Filled.SystemUpdate, "OTA更新"),
         SettingsNavItem(Icons.Filled.Refresh, "还原")
     )
 
@@ -179,7 +187,13 @@ fun SettingsPanel(
                     3 -> VoiceSettings()
                     4 -> VolumeSettings()
                     5 -> AboutSettings()
-                    6 -> {
+                    6 -> OtaSettings(
+                        otaState = otaState,
+                        onCheckUpdate = onCheckOtaUpdate,
+                        onDownload = onDownloadOta,
+                        onInstall = onInstallOta
+                    )
+                    7 -> {
                         // 还原 — 空内容
                         Text(
                             text = "还原设置",

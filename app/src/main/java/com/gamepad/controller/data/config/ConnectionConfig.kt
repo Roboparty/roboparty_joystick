@@ -15,7 +15,8 @@ data class ConnectionConfig(
     val controlParams: ControlParamsConfig = ControlParamsConfig(),
     val failSafe: FailSafeConfig = FailSafeConfig(),
     val auth: AuthConfig = AuthConfig(),
-    val ble: BleConfig = BleConfig()
+    val ble: BleConfig = BleConfig(),
+    val ota: OtaConfig = OtaConfig()
 ) {
     companion object {
         private val json = Json {
@@ -93,4 +94,22 @@ data class BleConfig(
     @SerialName("scan_timeout_ms") val scanTimeoutMs: Long = 10000,
     /** 请求的 MTU 大小 */
     @SerialName("mtu_size") val mtuSize: Int = 512
+)
+
+/**
+ * OTA 配置
+ *
+ * 控制 OTA 版本检查和下载的参数
+ * OTA 服务器地址独立配置，与控制服务器解耦
+ */
+@Serializable
+data class OtaConfig(
+    /** OTA 版本检查服务器 IP */
+    @SerialName("host") val host: String = "10.43.21.32",
+    /** OTA 版本检查服务器端口 */
+    @SerialName("port") val port: Int = 9001,
+    /** 版本检查超时时间（毫秒） */
+    @SerialName("timeout_ms") val timeoutMs: Long = 5000,
+    /** APK 下载 HTTP 基础地址（空则使用服务器响应的 download_url） */
+    @SerialName("http_base_url") val httpBaseUrl: String = ""
 )

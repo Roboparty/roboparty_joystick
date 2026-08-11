@@ -52,7 +52,7 @@ class BleControlChannel(
         private const val PACKET_HEADER_2: Byte = 0x55
     }
 
-    private val json = Json {
+    private val jsonParser = Json {
         encodeDefaults = true
         ignoreUnknownKeys = true
         isLenient = true
@@ -222,7 +222,7 @@ class BleControlChannel(
 
             // 发送认证请求
             val request = AuthRequest(deviceId = deviceId)
-            sendJsonData(json.encodeToString(request))
+            sendJsonData(jsonParser.encodeToString(request))
             Log.d(TAG, "Auth attempt ${attempt + 1}: sent AuthRequest")
 
             // 等待认证完成
@@ -260,7 +260,7 @@ class BleControlChannel(
 
     private fun isValidJson(text: String): Boolean {
         return try {
-            json.decodeFromString<ServerMessage>(text)
+            jsonParser.decodeFromString<ServerMessage>(text)
             true
         } catch (_: Exception) {
             false
@@ -280,7 +280,7 @@ class BleControlChannel(
 
     private fun handleServerMessage(data: String) {
         try {
-            val msg = json.decodeFromString<ServerMessage>(data)
+            val msg = jsonParser.decodeFromString<ServerMessage>(data)
             when (msg.type) {
                 "challenge" -> handleChallenge(msg)
                 "auth_result" -> handleAuthResult(msg)
@@ -305,7 +305,7 @@ class BleControlChannel(
         // 发送挑战响应
         val response = ChallengeResponse(deviceId = deviceId, signature = signature)
         scope.launch {
-            sendJsonData(json.encodeToString(response))
+            sendJsonData(jsonParser.encodeToString(response))
         }
         Log.d(TAG, "Sent ChallengeResponse")
     }
@@ -373,7 +373,7 @@ class BleControlChannel(
         }
 
         val packetWithToken = packet.copy(token = _token.value ?: "")
-        val data = json.encodeToString(packetWithToken)
+        val data = jsonParser.encodeToString(packetWithToken)
         Log.d(TAG, "OUT [${packetWithToken.type}]: seq=${packetWithToken.sequence}, lx=${packetWithToken.leftStickX}, ly=${packetWithToken.leftStickY}")
         pendingFrame.set(data)
     }
@@ -384,15 +384,14 @@ class BleControlChannel(
         Log.w(TAG, "ESTOP: bypassing token check")
 
         val packetWithToken = packet.copy(token = _token.value ?: "")
-        val data = json.encodeToString(packetWithToken)
+        val data = jsonParser.encodeToString(packetWithToken)
         Log.w(TAG, "OUT [${packetWithToken.type}]: ESTOP packet sent")
         scope.launch {
             sendJsonData(data)
         }
     }
 
-    @Suppress("NAME_SHADOWING")
-    override fun sendJson(jsonStr: String) {
+    override fun sendJson(json: String) {
         if (!_isConnected.value) return
         if (!checkTokenValidity()) {
             Log.w(TAG, "Token invalid, skipping json packet")
@@ -400,13 +399,13 @@ class BleControlChannel(
         }
         // 从 JSON 中提取 type 用于日志
         val type = try {
-            json.parseToJsonElement(jsonStr).jsonObject["type"]?.jsonPrimitive?.content ?: "unknown"
+            jsonParser.parseToJsonElement(json).jsonObject["type"]?.jsonPrimitive?.content ?: "unknown"
         } catch (_: Exception) {
             "unknown"
         }
-        Log.d(TAG, "OUT [$type]: $jsonStr")
+        Log.d(TAG, "OUT [$type]: $json")
         scope.launch {
-            sendJsonData(jsonStr)
+            sendJsonData(json)
         }
     }
 

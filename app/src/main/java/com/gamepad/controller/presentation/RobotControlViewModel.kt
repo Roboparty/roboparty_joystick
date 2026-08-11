@@ -10,6 +10,7 @@ import com.gamepad.controller.data.model.enums.GamepadButton
 import com.gamepad.controller.data.model.packet.AxesState
 import com.gamepad.controller.data.model.packet.ControlPacket
 import com.gamepad.controller.data.service.BleControlChannel
+import com.gamepad.controller.data.service.OtaManager
 import com.gamepad.controller.data.service.ReliableActionSender
 import com.gamepad.controller.data.service.UdpControlChannel
 import com.gamepad.controller.domain.model.ActionRequestState
@@ -19,7 +20,9 @@ import com.gamepad.controller.domain.model.UiIntent
 import com.gamepad.controller.domain.model.UiState
 import com.gamepad.controller.domain.service.ControlChannel
 import com.gamepad.controller.domain.service.GamepadInputService
+import android.content.Context
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +44,7 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class RobotControlViewModel @Inject constructor(
+    @ApplicationContext private val appContext: Context,
     private val controlChannel: ControlChannel,
     private val gamepadInputService: GamepadInputService,
     private val config: ConnectionConfig
@@ -67,6 +71,41 @@ class RobotControlViewModel @Inject constructor(
     // ==================== 技能动作 ====================
 
     private val actionSender = ReliableActionSender(controlChannel)
+
+    // ==================== OTA 更新 ====================
+
+    val otaManager = OtaManager(
+        context = appContext,
+        config = config
+    )
+
+    /** OTA 状态 */
+    val otaState = otaManager.otaState
+
+    /**
+     * 检查 OTA 更新
+     */
+    fun checkOtaUpdate() {
+        viewModelScope.launch {
+            otaManager.checkForUpdate()
+        }
+    }
+
+    /**
+     * 下载 OTA APK
+     */
+    fun downloadOtaApk() {
+        viewModelScope.launch {
+            otaManager.downloadApk()
+        }
+    }
+
+    /**
+     * 安装 OTA APK
+     */
+    fun installOtaApk() {
+        otaManager.installApk()
+    }
 
     /**
      * 当前正在执行的动作ID

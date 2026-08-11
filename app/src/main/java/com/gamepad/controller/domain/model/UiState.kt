@@ -4,6 +4,7 @@ import com.gamepad.controller.data.model.BatteryData
 import com.gamepad.controller.data.model.ImuData
 import com.gamepad.controller.data.model.MotorStatus
 import com.gamepad.controller.data.model.enums.ConnectionStatus
+import com.gamepad.controller.domain.model.OtaState
 
 /**
  * 姿态模式
@@ -37,7 +38,9 @@ data class UiState(
     // IMU 数据
     val imuData: ImuData? = null,
     // BMS 电池数据
-    val batteryData: BatteryData? = null
+    val batteryData: BatteryData? = null,
+    // OTA 更新状态
+    val otaState: OtaState = OtaState()
 ) {
     val isConnected: Boolean get() = connectionStatus.isConnected
 }

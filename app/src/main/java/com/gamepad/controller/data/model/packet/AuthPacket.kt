@@ -74,5 +74,12 @@ data class ServerMessage(
     // skill_action_ack 字段
     @SerialName("request_id") val requestId: String? = null,
     @SerialName("status") val status: String? = null,
-    @SerialName("execution_time_ms") val executionTimeMs: Long? = null
+    @SerialName("execution_time_ms") val executionTimeMs: Long? = null,
+    // OTA 版本检查响应字段
+    @SerialName("has_update") val hasUpdate: Boolean? = null,
+    @SerialName("latest_version") val latestVersion: String? = null,
+    @SerialName("download_url") val downloadUrl: String? = null,
+    @SerialName("file_size") val fileSize: Long? = null,
+    @SerialName("md5") val md5: String? = null,
+    @SerialName("changelog") val changelog: String? = null
 )

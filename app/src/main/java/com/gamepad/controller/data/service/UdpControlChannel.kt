@@ -59,7 +59,7 @@ class UdpControlChannel(
         private const val SEND_INTERVAL_MS = 20L // 50Hz 发送间隔
     }
 
-    private val json = Json {
+    private val jsonParser = Json {
         encodeDefaults = true
         ignoreUnknownKeys = true  // 忽略服务器返回的未知字段
         isLenient = true          // 宽松解析模式
@@ -207,7 +207,7 @@ class UdpControlChannel(
 
             // ① 发送认证请求
             val request = AuthRequest(deviceId = deviceId)
-            sendUdpImmediate(json.encodeToString(request))
+            sendUdpImmediate(jsonParser.encodeToString(request))
             authState = AuthState.WAITING_CHALLENGE
             Log.d(TAG, "Auth attempt ${attempt + 1}: sent AuthRequest")
 
@@ -241,7 +241,7 @@ class UdpControlChannel(
      */
     private fun handleServerMessage(data: String) {
         try {
-            val msg = json.decodeFromString<ServerMessage>(data)
+            val msg = jsonParser.decodeFromString<ServerMessage>(data)
             when (msg.type) {
                 "challenge" -> handleChallenge(msg)
                 "auth_result" -> handleAuthResult(msg)
@@ -273,7 +273,7 @@ class UdpControlChannel(
 
         // ③ 发送挑战响应
         val response = ChallengeResponse(deviceId = deviceId, signature = signature)
-        sendUdpImmediate(json.encodeToString(response))
+        sendUdpImmediate(jsonParser.encodeToString(response))
         authState = AuthState.WAITING_RESULT
         Log.d(TAG, "Sent ChallengeResponse")
     }
@@ -293,7 +293,7 @@ class UdpControlChannel(
             _isTokenValid.value = true
             authState = AuthState.AUTHENTICATED
             authCompletable.complete(true)
-            Log.i(TAG, "Auth success, token: ${msg.token?.take(10) ?: "null"}..., expires at: $tokenExpiresAt")
+            Log.i(TAG, "Auth success, token: ${msg.token.take(10)}..., expires at: $tokenExpiresAt")
         } else {
             Log.w(TAG, "Auth failed: ${msg.reason}")
             authCompletable.complete(false)
@@ -459,7 +459,7 @@ class UdpControlChannel(
         val packetWithToken = packet.copy(token = _token.value ?: "")
 
         // 序列化为 JSON，存入 pendingFrame（覆盖旧帧）
-        val data = json.encodeToString(packetWithToken)
+        val data = jsonParser.encodeToString(packetWithToken)
         Log.d(TAG, "OUT [${packetWithToken.type}]: seq=${packetWithToken.sequence}, lx=${packetWithToken.leftStickX}, ly=${packetWithToken.leftStickY}")
         pendingFrame.set(data)
     }
@@ -471,13 +471,12 @@ class UdpControlChannel(
 
         // 急停帧优先：立即同步发送，不走队列
         val packetWithToken = packet.copy(token = _token.value ?: "")
-        val data = json.encodeToString(packetWithToken)
+        val data = jsonParser.encodeToString(packetWithToken)
         Log.w(TAG, "OUT [${packetWithToken.type}]: ESTOP packet sent")
         sendUdpImmediate(data)
     }
 
-    @Suppress("NAME_SHADOWING")
-    override fun sendJson(jsonStr: String) {
+    override fun sendJson(json: String) {
         if (!_isConnected.value) return
         if (!checkTokenValidity()) {
             Log.w(TAG, "Token invalid, skipping json packet")
@@ -485,12 +484,12 @@ class UdpControlChannel(
         }
         // 从 JSON 中提取 type 用于日志
         val type = try {
-            json.parseToJsonElement(jsonStr).jsonObject["type"]?.jsonPrimitive?.content ?: "unknown"
+            jsonParser.parseToJsonElement(json).jsonObject["type"]?.jsonPrimitive?.content ?: "unknown"
         } catch (_: Exception) {
             "unknown"
         }
-        Log.d(TAG, "OUT [$type]: $jsonStr")
-        sendUdpImmediate(jsonStr)
+        Log.d(TAG, "OUT [$type]: $json")
+        sendUdpImmediate(json)
     }
 
     // ==================== 发送循环 ====================
