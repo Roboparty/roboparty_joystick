@@ -56,7 +56,12 @@ class RobotControlViewModel @Inject constructor(
 
     // ==================== UI 状态 ====================
 
-    private val _uiState = MutableStateFlow(UiState())
+    private val _uiState = MutableStateFlow(
+        UiState(
+            serverHost = config.control.host,
+            serverPort = config.control.port
+        )
+    )
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
     // ==================== 内部状态 ====================
@@ -282,6 +287,7 @@ class RobotControlViewModel @Inject constructor(
             is UiIntent.Estop -> triggerEstop()
             is UiIntent.EstopRelease -> releaseEstop()
             is UiIntent.PostureChanged -> handlePostureChanged(intent)
+            is UiIntent.ServerConfigChanged -> handleServerConfigChanged(intent)
         }
     }
 
@@ -332,6 +338,14 @@ class RobotControlViewModel @Inject constructor(
         Log.i(TAG, "Posture changed: ${intent.posture.label}")
     }
 
+    private fun handleServerConfigChanged(intent: UiIntent.ServerConfigChanged) {
+        _uiState.value = _uiState.value.copy(
+            serverHost = intent.host,
+            serverPort = intent.port
+        )
+        Log.i(TAG, "Server config changed: ${intent.host}:${intent.port}")
+    }
+
     /**
      * 触屏摇杆拖拽 — 更新 UI + 控制通道
      */
@@ -363,10 +377,12 @@ class RobotControlViewModel @Inject constructor(
 
     fun connectRobot() {
         viewModelScope.launch {
+            val host = _uiState.value.serverHost
+            val port = _uiState.value.serverPort
             _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.CONNECTING)
             try {
-                controlChannel.connect(config.control.host, config.control.port)
-                Log.i(TAG, "Connected to robot at ${config.control.host}:${config.control.port}")
+                controlChannel.connect(host, port)
+                Log.i(TAG, "Connected to robot at $host:$port")
             } catch (e: Exception) {
                 Log.e(TAG, "Connect failed: ${e.message}")
                 _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.FAILED)

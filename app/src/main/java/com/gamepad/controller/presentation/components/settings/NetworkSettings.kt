@@ -21,16 +21,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -43,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -54,10 +61,15 @@ import androidx.core.content.ContextCompat
  */
 @Composable
 fun NetworkSettings(
-    serverIp: String,
+    serverHost: String,
+    serverPort: Int,
+    onServerConfigChanged: (host: String, port: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editHost by remember { mutableStateOf(serverHost) }
+    var editPort by remember { mutableStateOf(serverPort.toString()) }
     val wifiManager = remember { context.getSystemService(Context.WIFI_SERVICE) as WifiManager }
 
     var wifiEnabled by remember { mutableStateOf(wifiManager.isWifiEnabled) }
@@ -197,20 +209,29 @@ fun NetworkSettings(
                 .height(56.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(Color(0xFFF8F9FA))
+                .clickable { showEditDialog = true }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "机器人服务器 IP",
+                text = "机器人服务器",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color(0xFF1A1A2E),
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = serverIp,
+                text = "$serverHost:$serverPort",
                 fontSize = 14.sp,
                 color = Color(0xFF666666)
+            )
+            Icon(
+                imageVector = Icons.Filled.Edit,
+                contentDescription = "编辑",
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(18.dp),
+                tint = Color(0xFF999999)
             )
         }
 
@@ -305,6 +326,61 @@ fun NetworkSettings(
                 }
             }
         }
+    }
+
+    // 编辑服务器配置对话框
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = {
+                Text(
+                    text = "服务器配置",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    OutlinedTextField(
+                        value = editHost,
+                        onValueChange = { editHost = it },
+                        label = { Text("服务器 IP 地址") },
+                        placeholder = { Text("例如: 192.168.1.100") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = editPort,
+                        onValueChange = { editPort = it.filter { c -> c.isDigit() } },
+                        label = { Text("端口号") },
+                        placeholder = { Text("例如: 9000") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.width(120.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val port = editPort.toIntOrNull() ?: 9000
+                        onServerConfigChanged(editHost, port)
+                        showEditDialog = false
+                    }
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showEditDialog = false }
+                ) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
 

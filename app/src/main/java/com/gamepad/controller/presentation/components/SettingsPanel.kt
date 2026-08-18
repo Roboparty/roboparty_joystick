@@ -68,6 +68,9 @@ private data class SettingsNavItem(
 fun SettingsPanel(
     onBack: () -> Unit,
     onEstopChanged: (Boolean) -> Unit,
+    serverHost: String = "10.43.21.32",
+    serverPort: Int = 9000,
+    onServerConfigChanged: (host: String, port: Int) -> Unit = { _, _ -> },
     otaState: OtaState = OtaState(),
     onCheckOtaUpdate: () -> Unit = {},
     onDownloadOta: () -> Unit = {},
@@ -181,7 +184,11 @@ fun SettingsPanel(
                     .verticalScroll(rememberScrollState())
             ) {
                 when (selectedNavIndex) {
-                    0 -> NetworkSettings(serverIp = "192.168.1.100")
+                    0 -> NetworkSettings(
+                        serverHost = serverHost,
+                        serverPort = serverPort,
+                        onServerConfigChanged = onServerConfigChanged
+                    )
                     1 -> AuthPasswordSettings()
                     2 -> MotionSettings(onEstopChanged = onEstopChanged)
                     3 -> VoiceSettings()

@@ -25,4 +25,6 @@ sealed class UiIntent {
     data object EstopRelease : UiIntent()
 
     data class PostureChanged(val posture: PostureMode) : UiIntent()
+
+    data class ServerConfigChanged(val host: String, val port: Int) : UiIntent()
 }

@@ -25,6 +25,9 @@ data class UiState(
     val buttons: Int = 0,
     val isEstopping: Boolean = false,
     val isTokenValid: Boolean = false,  // Token 是否有效
+    // 服务器配置
+    val serverHost: String = "10.43.21.32",
+    val serverPort: Int = 9000,
     // 姿态
     val posture: PostureMode = PostureMode.STAND,
     // 左摇杆实时位置（-1~1）

@@ -3,14 +3,22 @@ package com.gamepad.controller.presentation.components
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,7 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.gamepad.controller.R
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.domain.model.UiIntent
@@ -55,6 +65,7 @@ fun MainScreen(viewModel: RobotControlViewModel) {
     var showSettings by remember { mutableStateOf(false) }
     var showNotification by remember { mutableStateOf(false) }
     var showSkillLibrary by remember { mutableStateOf(false) }
+    var showConnectionDialog by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -99,12 +110,17 @@ fun MainScreen(viewModel: RobotControlViewModel) {
                     }
                 )
 
-                // 连接/断开按钮
-                ConnectionButton(
+                // 连接状态指示器 / 连接按钮
+                ConnectionStatusButton(
                     status = uiState.connectionStatus,
+                    serverHost = uiState.serverHost,
+                    serverPort = uiState.serverPort,
                     onClick = {
-                        if (uiState.isConnected) viewModel.disconnectRobot()
-                        else viewModel.connectRobot()
+                        if (uiState.isConnected) {
+                            viewModel.disconnectRobot()
+                        } else {
+                            showConnectionDialog = true
+                        }
                     }
                 )
 
@@ -173,6 +189,11 @@ fun MainScreen(viewModel: RobotControlViewModel) {
                         if (enabled) viewModel.sendIntent(UiIntent.Estop)
                         else viewModel.sendIntent(UiIntent.EstopRelease)
                     },
+                    serverHost = uiState.serverHost,
+                    serverPort = uiState.serverPort,
+                    onServerConfigChanged = { host, port ->
+                        viewModel.sendIntent(UiIntent.ServerConfigChanged(host, port))
+                    },
                     otaState = otaState,
                     onCheckOtaUpdate = { viewModel.checkOtaUpdate() },
                     onDownloadOta = { viewModel.downloadOtaApk() },
@@ -227,33 +248,121 @@ fun MainScreen(viewModel: RobotControlViewModel) {
                 imuData = uiState.imuData
             )
         }
+
+        // ---- 连接对话框 ----
+        if (showConnectionDialog) {
+            ConnectionDialog(
+                serverHost = uiState.serverHost,
+                serverPort = uiState.serverPort,
+                connectionStatus = uiState.connectionStatus,
+                onDismiss = { showConnectionDialog = false },
+                onConnect = { host, port ->
+                    viewModel.sendIntent(UiIntent.ServerConfigChanged(host, port))
+                    viewModel.connectRobot()
+                },
+                onDisconnect = {
+                    viewModel.disconnectRobot()
+                }
+            )
+        }
     }
 }
 
 /**
- * 连接/断开按钮 — 圆形状态指示器
+ * 连接状态按钮
  *
- * 点击切换连接/断开
- * 绿色=已连接，灰色=未连接，黄色=连接中
+ * - 未连接/失败：显示"连接"按钮
+ * - 连接中：显示加载状态
+ * - 已连接：显示绿色状态点（点击断开）
  */
 @Composable
-private fun ConnectionButton(
+private fun ConnectionStatusButton(
     status: ConnectionStatus,
+    serverHost: String,
+    serverPort: Int,
     onClick: () -> Unit
 ) {
-    val color = when (status) {
-        ConnectionStatus.CONNECTED -> Color(0xFF3FB950)
-        ConnectionStatus.CONNECTING -> Color(0xFFF59E0B)
-        ConnectionStatus.FAILED -> Color(0xFFEF4444)
-        else -> Color(0xFFB0B8C4)
-    }
+    when (status) {
+        ConnectionStatus.CONNECTED -> {
+            // 已连接：绿色小点，点击断开
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFE8F5E9))
+                    .clickable { onClick() }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF3FB950))
+                )
+                Text(
+                    text = "已连接",
+                    fontSize = 12.sp,
+                    color = Color(0xFF3FB950)
+                )
+            }
+        }
 
-    Box(
-        modifier = Modifier
-            .padding(top = 8.dp)
-            .size(12.dp)
-            .clip(CircleShape)
-            .background(color)
-            .clickable { onClick() }
-    )
+        ConnectionStatus.CONNECTING -> {
+            // 连接中：显示加载状态
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFFFFF8E1))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(12.dp),
+                    color = Color(0xFFF59E0B),
+                    strokeWidth = 2.dp
+                )
+                Text(
+                    text = "连接中...",
+                    fontSize = 12.sp,
+                    color = Color(0xFFF59E0B)
+                )
+            }
+        }
+
+        else -> {
+            // 未连接/失败：显示连接按钮
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .padding(top = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(
+                        if (status == ConnectionStatus.FAILED)
+                            Color(0xFFFFEBEE) else Color(0xFFF0F4FF)
+                    )
+                    .clickable { onClick() }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.WifiOff,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = if (status == ConnectionStatus.FAILED)
+                        Color(0xFFEF4444) else Color(0xFF2D7FF9)
+                )
+                Text(
+                    text = if (status == ConnectionStatus.FAILED) "重试连接" else "连接",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (status == ConnectionStatus.FAILED)
+                        Color(0xFFEF4444) else Color(0xFF2D7FF9)
+                )
+            }
+        }
+    }
 }
