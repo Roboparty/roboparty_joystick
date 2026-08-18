@@ -66,15 +66,19 @@ jobs:
           RELEASE_KEY_PASSWORD=${KEY_PASS}
           EOF
 
-      - name: Build release APK
+      - name: Build APKs
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
-
-      - name: Build debug APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          n=0
+          until ./gradlew assembleRelease assembleDebug --no-daemon; do
+            n=$((n + 1))
+            if [ "$n" -ge 3 ]; then
+              echo "::error::Build failed after $n attempts"
+              exit 1
+            fi
+            echo "Build attempt $n failed, retrying..."
+            sleep 15
+          done
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v4
