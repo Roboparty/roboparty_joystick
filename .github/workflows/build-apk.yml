@@ -48,7 +48,7 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           STORE_PASS="${RELEASE_STORE_PASSWORD:-roboPartyStore}"
-          KEY_PASS="${RELEASE_KEY_PASSWORD:-roboPartyKey}"
+          KEY_PASS="${RELEASE_KEY_PASSWORD:-${STORE_PASS}}"
 
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > app/release-key.jks
@@ -57,7 +57,7 @@ jobs:
               -keystore app/release-key.jks \
               -alias android_controller \
               -keyalg RSA -keysize 2048 -validity 10000 \
-              -storepass "$STORE_PASS" -keypass "$KEY_PASS" \
+              -storepass "$STORE_PASS" \
               -dname "CN=RoboParty Joystick, OU=Dev, O=RoboParty, L=NA, ST=NA, C=CN"
           fi
 
