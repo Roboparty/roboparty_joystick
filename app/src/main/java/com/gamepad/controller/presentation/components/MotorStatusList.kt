@@ -97,7 +97,7 @@ private fun MotorStatusItem(
 
                     // 电机名称
                     Text(
-                        text = motor.positionName,
+                        text = "电机 ${motor.id}",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF1A1A2E)
@@ -120,17 +120,17 @@ private fun MotorStatusItem(
                     .padding(top = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // 速度
+                // 位置
                 DataChip(
-                    label = "转速",
-                    value = "${motor.speed.toInt()} RPM",
+                    label = "位置",
+                    value = "${String.format("%.2f", motor.position)} rad",
                     color = Color(0xFF667EEA)
                 )
 
-                // 电流
+                // 速度
                 DataChip(
-                    label = "电流",
-                    value = "${String.format("%.1f", motor.current)} A",
+                    label = "速度",
+                    value = "${String.format("%.3f", motor.speed)} rad/s",
                     color = Color(0xFF8B5CF6)
                 )
 
@@ -141,10 +141,10 @@ private fun MotorStatusItem(
                     color = getTemperatureColor(motor.temperature)
                 )
 
-                // 编码器
+                // 模式
                 DataChip(
-                    label = "编码器",
-                    value = "${motor.encoder}",
+                    label = "模式",
+                    value = motor.modeDescription,
                     color = Color(0xFF6B7280)
                 )
             }

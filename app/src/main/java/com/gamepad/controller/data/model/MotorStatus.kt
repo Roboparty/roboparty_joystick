@@ -7,43 +7,51 @@ import kotlinx.serialization.Serializable
  * 电机状态数据
  *
  * 服务器 → 客户端，频率 10Hz
+ *
+ * JSON格式（23个电机）：
+ * {
+ *   "type": "motors",
+ *   "timestamp": 1787212448470,
+ *   "id": [1, 2, 3, ...],
+ *   "position": [0.0231, -0.0429, ...],
+ *   "speed": [0.0061, 0.0061, ...],
+ *   "torque": [-0.0488, -0.0488, ...],
+ *   "temperature": [30.0, 30.0, ...],
+ *   "error": [0, 0, ...],
+ *   "mode": [1, 1, ...],
+ *   "response_count": [0, 0, ...]
+ * }
  */
 @Serializable
 data class MotorStatusResponse(
     @SerialName("type") val type: String = "motors",
     @SerialName("timestamp") val timestamp: Long = System.currentTimeMillis(),
-    @SerialName("left_speed") val leftSpeed: Float = 0f,
-    @SerialName("left_current") val leftCurrent: Float = 0f,
-    @SerialName("left_temp") val leftTemp: Float = 0f,
-    @SerialName("left_encoder") val leftEncoder: Long = 0,
-    @SerialName("right_speed") val rightSpeed: Float = 0f,
-    @SerialName("right_current") val rightCurrent: Float = 0f,
-    @SerialName("right_temp") val rightTemp: Float = 0f,
-    @SerialName("right_encoder") val rightEncoder: Long = 0,
-    @SerialName("motor_error") val motorError: Int = 0
+    @SerialName("id") val id: List<Int> = emptyList(),
+    @SerialName("position") val position: List<Float> = emptyList(),
+    @SerialName("speed") val speed: List<Float> = emptyList(),
+    @SerialName("torque") val torque: List<Float> = emptyList(),
+    @SerialName("temperature") val temperature: List<Float> = emptyList(),
+    @SerialName("error") val error: List<Int> = emptyList(),
+    @SerialName("mode") val mode: List<Int> = emptyList(),
+    @SerialName("response_count") val responseCount: List<Int> = emptyList()
 ) {
+    /** 电机数量 */
+    val motorCount: Int get() = id.size
+
     /** 转换为 MotorStatus 列表用于 UI 展示 */
     fun toMotorStatusList(): List<MotorStatus> {
-        return listOf(
+        return id.indices.map { i ->
             MotorStatus(
-                id = "left",
-                positionName = "左电机",
-                speed = leftSpeed,
-                current = leftCurrent,
-                temperature = leftTemp,
-                encoder = leftEncoder,
-                errorCode = motorError
-            ),
-            MotorStatus(
-                id = "right",
-                positionName = "右电机",
-                speed = rightSpeed,
-                current = rightCurrent,
-                temperature = rightTemp,
-                encoder = rightEncoder,
-                errorCode = motorError
+                id = id.getOrElse(i) { 0 },
+                position = position.getOrElse(i) { 0f },
+                speed = speed.getOrElse(i) { 0f },
+                torque = torque.getOrElse(i) { 0f },
+                temperature = temperature.getOrElse(i) { 0f },
+                errorCode = error.getOrElse(i) { 0 },
+                mode = mode.getOrElse(i) { 0 },
+                responseCount = responseCount.getOrElse(i) { 0 }
             )
-        )
+        }
     }
 }
 
@@ -51,13 +59,14 @@ data class MotorStatusResponse(
  * 单个电机状态（用于 UI 展示）
  */
 data class MotorStatus(
-    val id: String,
-    val positionName: String,
+    val id: Int = 0,
+    val position: Float = 0f,
     val speed: Float = 0f,
-    val current: Float = 0f,
+    val torque: Float = 0f,
     val temperature: Float = 0f,
-    val encoder: Long = 0,
-    val errorCode: Int = 0
+    val errorCode: Int = 0,
+    val mode: Int = 0,
+    val responseCount: Int = 0
 ) {
     /** 获取状态类型 */
     val statusType: MotorStatusType
@@ -65,6 +74,16 @@ data class MotorStatus(
             errorCode != 0 -> MotorStatusType.ERROR
             temperature > 70 -> MotorStatusType.WARNING
             else -> MotorStatusType.NORMAL
+        }
+
+    /** 获取模式描述 */
+    val modeDescription: String
+        get() = when (mode) {
+            0 -> "待机"
+            1 -> "运行"
+            2 -> "校准"
+            3 -> "错误"
+            else -> "未知($mode)"
         }
 }
 

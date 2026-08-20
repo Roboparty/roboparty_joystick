@@ -396,9 +396,10 @@ private fun checkLocationPermission(context: Context): Boolean {
 /**
  * 刷新 WiFi 信息（当前 SSID 和可用网络）
  */
+@Suppress("DEPRECATION")
 private fun refreshWifiInfo(
     wifiManager: WifiManager,
-    context: Context,
+    @Suppress("UNUSED_PARAMETER") context: Context,
     onUpdate: (ssid: String?, networks: List<String>) -> Unit
 ) {
     // 获取当前 SSID

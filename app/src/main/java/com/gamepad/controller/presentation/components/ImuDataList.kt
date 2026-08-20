@@ -58,75 +58,68 @@ fun ImuDataList(
                 )
             }
         } else {
-            // 姿态角
+            // 姿态角（从四元数转换）
+            val attitude = imuData.euler
+
             DataCard(
                 title = "姿态角",
                 onClick = onImuClick
             ) {
-                DataRow("俯仰 (Pitch)", "${String.format("%.1f", imuData.pitch)}°")
-                DataRow("横滚 (Roll)", "${String.format("%.1f", imuData.roll)}°")
-                DataRow("偏航 (Yaw)", "${String.format("%.1f", imuData.yaw)}°")
+                DataRow("俯仰 (Pitch)", "${String.format("%.1f", attitude.pitch)}°")
+                DataRow("横滚 (Roll)", "${String.format("%.1f", attitude.roll)}°")
+                DataRow("偏航 (Yaw)", "${String.format("%.1f", attitude.yaw)}°")
             }
 
-            // 加速度
+            // 线性加速度
             DataCard(
-                title = "加速度 (m/s²)",
+                title = "线性加速度 (m/s²)",
                 onClick = onImuClick
             ) {
                 DataRow(
                     "X",
-                    String.format("%.2f", imuData.accelX),
-                    getAccelColor(imuData.accelX)
+                    String.format("%.2f", imuData.linAccX),
+                    getAccelColor(imuData.linAccX)
                 )
                 DataRow(
                     "Y",
-                    String.format("%.2f", imuData.accelY),
-                    getAccelColor(imuData.accelY)
+                    String.format("%.2f", imuData.linAccY),
+                    getAccelColor(imuData.linAccY)
                 )
                 DataRow(
                     "Z",
-                    String.format("%.2f", imuData.accelZ),
-                    getAccelColor(imuData.accelZ - 9.8f)
+                    String.format("%.2f", imuData.linAccZ),
+                    getAccelColor(imuData.linAccZ - 9.8f)
                 )
             }
 
             // 角速度
             DataCard(
-                title = "角速度 (°/s)",
+                title = "角速度 (rad/s)",
                 onClick = onImuClick
             ) {
                 DataRow(
                     "X",
-                    String.format("%.2f", imuData.gyroX),
-                    getGyroColor(imuData.gyroX)
+                    String.format("%.4f", imuData.angVelX),
+                    getGyroColor(imuData.angVelX)
                 )
                 DataRow(
                     "Y",
-                    String.format("%.2f", imuData.gyroY),
-                    getGyroColor(imuData.gyroY)
+                    String.format("%.4f", imuData.angVelY),
+                    getGyroColor(imuData.angVelY)
                 )
                 DataRow(
                     "Z",
-                    String.format("%.2f", imuData.gyroZ),
-                    getGyroColor(imuData.gyroZ)
+                    String.format("%.4f", imuData.angVelZ),
+                    getGyroColor(imuData.angVelZ)
                 )
             }
 
-            // 错误信息（如果有错误）
-            if (imuData.imuError != 0) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFFEF2F2))
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = "⚠ IMU 错误: ${imuData.imuError}",
-                        fontSize = 13.sp,
-                        color = Color(0xFFEF4444)
-                    )
-                }
+            // 温度
+            DataCard(
+                title = "传感器信息",
+                onClick = onImuClick
+            ) {
+                DataRow("温度", String.format("%.1f °C", imuData.temp))
             }
         }
     }

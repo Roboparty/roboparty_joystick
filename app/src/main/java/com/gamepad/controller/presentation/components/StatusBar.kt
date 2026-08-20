@@ -129,6 +129,7 @@ private fun rememberWifiLevel(): androidx.compose.runtime.State<Int> {
     return level
 }
 
+@Suppress("DEPRECATION")
 private fun getWifiLevel(context: Context): Int {
     return try {
         val wifiManager = context.applicationContext

@@ -67,6 +67,8 @@ private data class SettingsNavItem(
 @Composable
 fun SettingsPanel(
     onBack: () -> Unit,
+    isEstopping: Boolean = false,
+    estopStatus: com.gamepad.controller.domain.model.EstopStatus = com.gamepad.controller.domain.model.EstopStatus.IDLE,
     onEstopChanged: (Boolean) -> Unit,
     serverHost: String = "10.43.21.32",
     serverPort: Int = 9000,
@@ -190,7 +192,11 @@ fun SettingsPanel(
                         onServerConfigChanged = onServerConfigChanged
                     )
                     1 -> AuthPasswordSettings()
-                    2 -> MotionSettings(onEstopChanged = onEstopChanged)
+                    2 -> MotionSettings(
+                        isEstopping = isEstopping,
+                        estopStatus = estopStatus,
+                        onEstopChanged = onEstopChanged
+                    )
                     3 -> VoiceSettings()
                     4 -> VolumeSettings()
                     5 -> AboutSettings()

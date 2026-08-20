@@ -249,6 +249,7 @@ class BleConnectionManager(private val context: Context) {
         }
 
         @Deprecated("Deprecated in Java")
+        @Suppress("DEPRECATION")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
             if (characteristic.uuid == RX_CHAR_UUID) {
                 val data = characteristic.value
@@ -285,6 +286,7 @@ class BleConnectionManager(private val context: Context) {
     // ==================== 数据发送 ====================
 
     @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
     fun sendData(data: ByteArray): Boolean {
         val gatt = bluetoothGatt
         val characteristic = txCharacteristic
@@ -302,6 +304,7 @@ class BleConnectionManager(private val context: Context) {
     // ==================== 辅助方法 ====================
 
     @SuppressLint("MissingPermission")
+    @Suppress("DEPRECATION")
     private fun subscribeToNotifications(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
         gatt.setCharacteristicNotification(characteristic, true)
 

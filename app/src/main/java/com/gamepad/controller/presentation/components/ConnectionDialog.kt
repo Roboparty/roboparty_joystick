@@ -65,7 +65,7 @@ fun ConnectionDialog(
     onDismiss: () -> Unit,
     onConnect: (host: String, port: Int) -> Unit,
     onDisconnect: () -> Unit,
-    modifier: Modifier = Modifier
+    @Suppress("UNUSED_PARAMETER") modifier: Modifier = Modifier
 ) {
     var editHost by remember { mutableStateOf(serverHost) }
     var editPort by remember { mutableStateOf(serverPort.toString()) }

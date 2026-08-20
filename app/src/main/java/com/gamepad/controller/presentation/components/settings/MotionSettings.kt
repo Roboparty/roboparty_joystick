@@ -33,12 +33,19 @@ import androidx.compose.ui.unit.sp
  */
 @Composable
 fun MotionSettings(
+    isEstopping: Boolean = false,
+    estopStatus: com.gamepad.controller.domain.model.EstopStatus = com.gamepad.controller.domain.model.EstopStatus.IDLE,
     onEstopChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var maxSpeed by remember { mutableFloatStateOf(0.5f) }
     var estopResponseTime by remember { mutableFloatStateOf(200f) }
-    var softwareEstop by remember { mutableStateOf(false) }
+    var softwareEstop by remember { mutableStateOf(isEstopping) }
+
+    // 同步外部状态变化
+    androidx.compose.runtime.LaunchedEffect(isEstopping) {
+        softwareEstop = isEstopping
+    }
 
     Column(
         modifier = modifier.fillMaxSize(),
@@ -140,33 +147,49 @@ fun MotionSettings(
         }
 
         // 软件急停开关
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color(0xFFF8F9FA))
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = "软件急停",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (softwareEstop) Color(0xFFEF4444) else Color(0xFF1A1A2E)
-            )
-            Switch(
-                checked = softwareEstop,
-                onCheckedChange = {
-                    softwareEstop = it
-                    onEstopChanged(it)
-                },
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFFEF4444)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "软件急停",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (softwareEstop) Color(0xFFEF4444) else Color(0xFF1A1A2E)
                 )
-            )
+                Switch(
+                    checked = softwareEstop,
+                    onCheckedChange = {
+                        softwareEstop = it
+                        onEstopChanged(it)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = Color(0xFFEF4444)
+                    )
+                )
+            }
+            // 急停状态显示
+            if (softwareEstop) {
+                Text(
+                    text = estopStatus.description,
+                    fontSize = 12.sp,
+                    color = when (estopStatus) {
+                        com.gamepad.controller.domain.model.EstopStatus.CONFIRMED -> Color(0xFF3FB950)
+                        com.gamepad.controller.domain.model.EstopStatus.FAILED -> Color(0xFFEF4444)
+                        else -> Color(0xFF999999)
+                    }
+                )
+            }
         }
     }
 }

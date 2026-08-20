@@ -97,20 +97,32 @@ fun ImuDetailCard(
                     )
                 }
             } else {
-                // 姿态角
+                // 姿态角（从四元数转换）
+                val attitude = imuData.euler
+
                 InfoSection(title = "姿态角 (Attitude)") {
-                    AngleRow("俯仰角 (Pitch)", imuData.pitch, -90f, 90f)
-                    AngleRow("横滚角 (Roll)", imuData.roll, -180f, 180f)
-                    AngleRow("偏航角 (Yaw)", imuData.yaw, 0f, 360f)
+                    AngleRow("俯仰角 (Pitch)", attitude.pitch, -90f, 90f)
+                    AngleRow("横滚角 (Roll)", attitude.roll, -180f, 180f)
+                    AngleRow("偏航角 (Yaw)", attitude.yaw, 0f, 360f)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 加速度
-                InfoSection(title = "加速度 (m/s²)") {
-                    VectorRow("X", imuData.accelX)
-                    VectorRow("Y", imuData.accelY)
-                    VectorRow("Z", imuData.accelZ)
+                // 四元数
+                InfoSection(title = "四元数 (Quaternion)") {
+                    DataRow("W", String.format("%.6f", imuData.quatW))
+                    DataRow("X", String.format("%.6f", imuData.quatX))
+                    DataRow("Y", String.format("%.6f", imuData.quatY))
+                    DataRow("Z", String.format("%.6f", imuData.quatZ))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 线性加速度
+                InfoSection(title = "线性加速度 (m/s²)") {
+                    VectorRow("X", imuData.linAccX)
+                    VectorRow("Y", imuData.linAccY)
+                    VectorRow("Z", imuData.linAccZ)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
@@ -128,48 +140,22 @@ fun ImuDetailCard(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 角速度
-                InfoSection(title = "角速度 (°/s)") {
-                    VectorRow("X", imuData.gyroX)
-                    VectorRow("Y", imuData.gyroY)
-                    VectorRow("Z", imuData.gyroZ)
+                InfoSection(title = "角速度 (rad/s)") {
+                    VectorRow("X", imuData.angVelX)
+                    VectorRow("Y", imuData.angVelY)
+                    VectorRow("Z", imuData.angVelZ)
 
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // 合角速度
-                    DataRow("合角速度", String.format("%.2f °/s", imuData.totalAngularVelocity))
+                    DataRow("合角速度", String.format("%.4f rad/s", imuData.totalAngularVelocity))
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 磁场
-                InfoSection(title = "磁场 (uT)") {
-                    VectorRow("X", imuData.magX)
-                    VectorRow("Y", imuData.magY)
-                    VectorRow("Z", imuData.magZ)
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // 合磁场强度
-                    DataRow("合磁场强度", String.format("%.1f uT", imuData.totalMagneticField))
-                }
-
-                // 错误信息
-                if (imuData.imuError != 0) {
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFFEF2F2))
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = "⚠ IMU 错误码: ${imuData.imuError}",
-                            fontSize = 14.sp,
-                            color = Color(0xFFEF4444)
-                        )
-                    }
+                // 温度
+                InfoSection(title = "传感器信息") {
+                    DataRow("温度", String.format("%.1f °C", imuData.temp))
                 }
             }
         }

@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gamepad.controller.data.config.ConnectionConfig
 import com.gamepad.controller.data.model.BatteryData
+import com.gamepad.controller.data.model.ImuData
+import com.gamepad.controller.data.model.MotorStatusResponse
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.data.model.enums.GamepadButton
 import com.gamepad.controller.data.model.packet.AxesState
@@ -14,6 +16,7 @@ import com.gamepad.controller.data.service.OtaManager
 import com.gamepad.controller.data.service.ReliableActionSender
 import com.gamepad.controller.data.service.UdpControlChannel
 import com.gamepad.controller.domain.model.ActionRequestState
+import com.gamepad.controller.domain.model.EstopStatus
 import com.gamepad.controller.domain.model.PostureMode
 import com.gamepad.controller.domain.model.RawInput
 import com.gamepad.controller.domain.model.UiIntent
@@ -169,6 +172,26 @@ class RobotControlViewModel @Inject constructor(
         Log.d(TAG, "Battery data: voltage=${batteryData.voltage}V, soc=${batteryData.soc}%, temp=${batteryData.temp}°C")
     }
 
+    /**
+     * 处理 IMU 数据
+     */
+    fun handleImuData(imuData: ImuData) {
+        _uiState.value = _uiState.value.copy(imuData = imuData)
+        Log.d(TAG, "IMU data: pitch=${imuData.euler.pitch}°, roll=${imuData.euler.roll}°, yaw=${imuData.euler.yaw}°")
+    }
+
+    /**
+     * 处理电机数据
+     */
+    fun handleMotorData(motorResponse: MotorStatusResponse) {
+        val motors = motorResponse.toMotorStatusList()
+        _uiState.value = _uiState.value.copy(
+            motors = motors,
+            motorCount = motorResponse.motorCount
+        )
+        Log.d(TAG, "Motor data: ${motorResponse.motorCount} motors")
+    }
+
     // ==================== 初始化 ====================
 
     init {
@@ -189,6 +212,16 @@ class RobotControlViewModel @Inject constructor(
             handleBatteryData(batteryData)
         }
 
+        // IMU 数据回调
+        val imuCallback: (ImuData) -> Unit = { imuData ->
+            handleImuData(imuData)
+        }
+
+        // 电机数据回调
+        val motorCallback: (MotorStatusResponse) -> Unit = { motorResponse ->
+            handleMotorData(motorResponse)
+        }
+
         // 技能动作确认回调
         val ackReceivedCallback: (String) -> Unit = { requestId ->
             handleSkillActionAckReceived(requestId)
@@ -201,6 +234,8 @@ class RobotControlViewModel @Inject constructor(
         // 设置 UDP 通道回调
         (controlChannel as? UdpControlChannel)?.let { udp ->
             udp.onBatteryDataReceived = batteryCallback
+            udp.onImuDataReceived = imuCallback
+            udp.onMotorDataReceived = motorCallback
             udp.onSkillActionAckReceived = ackReceivedCallback
             udp.onSkillActionAckCompleted = ackCompletedCallback
         }
@@ -208,6 +243,7 @@ class RobotControlViewModel @Inject constructor(
         // 设置 BLE 通道回调
         (controlChannel as? BleControlChannel)?.let { ble ->
             ble.onBatteryDataReceived = batteryCallback
+            ble.onImuDataReceived = imuCallback
             ble.onSkillActionAckReceived = ackReceivedCallback
             ble.onSkillActionAckCompleted = ackCompletedCallback
         }
@@ -315,11 +351,6 @@ class RobotControlViewModel @Inject constructor(
     private fun handleButtonPressed(intent: UiIntent.ButtonPressed) {
         buttonStates[intent.button] = true
         Log.d(TAG, "Button pressed: ${intent.button}")
-
-        when (intent.button) {
-            GamepadButton.START -> triggerEstop()
-            else -> Unit
-        }
     }
 
     private fun handleButtonReleased(intent: UiIntent.ButtonReleased) {
@@ -329,7 +360,6 @@ class RobotControlViewModel @Inject constructor(
     private fun handleDeviceChanged(intent: UiIntent.DeviceChanged) {
         if (!intent.isConnected && intent.deviceId == _uiState.value.activeDeviceId) {
             Log.w(TAG, "Active gamepad disconnected!")
-            triggerEstop()
         }
     }
 
@@ -439,24 +469,40 @@ class RobotControlViewModel @Inject constructor(
     // ==================== 急停 ====================
 
     private fun triggerEstop() {
-        _uiState.value = _uiState.value.copy(isEstopping = true)
-        // 发送全零包作为急停信号
-        val packet = ControlPacket(
-            timestamp = System.currentTimeMillis(),
-            sequence = ++seqCounter
+        _uiState.value = _uiState.value.copy(
+            isEstopping = true,
+            estopStatus = EstopStatus.SENDING
         )
-        controlChannel.sendEstop(packet)
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(estopStatus = EstopStatus.WAITING)
+                val confirmed = controlChannel.sendEstop()
+                if (confirmed) {
+                    _uiState.value = _uiState.value.copy(estopStatus = EstopStatus.CONFIRMED)
+                    Log.i(TAG, "!!! ESTOP CONFIRMED by server !!!")
+                } else {
+                    _uiState.value = _uiState.value.copy(estopStatus = EstopStatus.FAILED)
+                    Log.w(TAG, "!!! ESTOP sent but no server confirmation !!!")
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(estopStatus = EstopStatus.FAILED)
+                Log.e(TAG, "!!! ESTOP FAILED: ${e.message} !!!")
+            }
+        }
         Log.w(TAG, "!!! ESTOP TRIGGERED !!!")
     }
 
     private fun releaseEstop() {
-        _uiState.value = _uiState.value.copy(isEstopping = false)
+        _uiState.value = _uiState.value.copy(
+            isEstopping = false,
+            estopStatus = EstopStatus.IDLE
+        )
     }
 
     // ==================== 生命周期 ====================
 
     fun onPause() {
-        triggerEstop()
+        // 不再自动触发急停
     }
 
     fun onResume() {

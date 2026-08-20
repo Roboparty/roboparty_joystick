@@ -82,11 +82,15 @@ interface ControlChannel {
     fun sendControl(packet: ControlPacket)
 
     /**
-     * 发送急停指令（最高优先级）
+     * 发送急停指令 — 三步确认协议
      *
-     * @param packet 带 estop=true 的控制包
+     * 1. 发送 stop request
+     * 2. 等待服务器返回 accepted
+     * 3. 发送 stop received
+     *
+     * @return 是否收到服务器确认
      */
-    fun sendEstop(packet: ControlPacket)
+    suspend fun sendEstop(): Boolean
 
     /**
      * 发送原始JSON数据

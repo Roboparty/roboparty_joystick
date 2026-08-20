@@ -20,14 +20,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Handshake
-import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -113,7 +113,7 @@ fun SkillLibraryPanel(
                 // 显示当前执行的动作
                 if (isAnyActionExecuting && currentActionId != null) {
                     Spacer(modifier = Modifier.weight(1f))
-                    val actionName = SkillActionRegistry.getAction(currentActionId!!)?.name ?: currentActionId!!
+                    val actionName = SkillActionRegistry.getAction(currentActionId)?.name ?: currentActionId
                     Text(
                         text = "执行中: $actionName",
                         fontSize = 12.sp,
@@ -281,13 +281,13 @@ private fun SwipeToExecuteCard(
 
     val statusIcon = when {
         isDisabled -> Icons.Filled.Timer
-        state is ActionRequestState.Idle -> Icons.Filled.Send
+        state is ActionRequestState.Idle -> Icons.AutoMirrored.Filled.Send
         state is ActionRequestState.Sending -> Icons.Filled.Refresh
         state is ActionRequestState.Executing -> Icons.Filled.Timer
         state is ActionRequestState.Success -> Icons.Filled.CheckCircle
         state is ActionRequestState.Failed -> Icons.Filled.Error
-        state is ActionRequestState.Timeout -> Icons.Filled.Help
-        else -> Icons.Filled.Send
+        state is ActionRequestState.Timeout -> Icons.AutoMirrored.Filled.Help
+        else -> Icons.AutoMirrored.Filled.Send
     }
 
     // 是否可交互

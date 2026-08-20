@@ -185,6 +185,8 @@ fun MainScreen(viewModel: RobotControlViewModel) {
                 val otaState by viewModel.otaState.collectAsState()
                 SettingsPanel(
                     onBack = { showSettings = false },
+                    isEstopping = uiState.isEstopping,
+                    estopStatus = uiState.estopStatus,
                     onEstopChanged = { enabled ->
                         if (enabled) viewModel.sendIntent(UiIntent.Estop)
                         else viewModel.sendIntent(UiIntent.EstopRelease)
@@ -210,6 +212,8 @@ fun MainScreen(viewModel: RobotControlViewModel) {
                     onBack = { showNotification = false },
                     onRefresh = { /* TODO: 请求最新的电池数据 */ },
                     batteryData = uiState.batteryData,
+                    imuData = uiState.imuData,
+                    motors = uiState.motors,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 19.dp)
@@ -244,6 +248,12 @@ fun MainScreen(viewModel: RobotControlViewModel) {
         if (showCard) {
             FloatingCard(
                 onDismiss = { showCard = false },
+                isEstopping = uiState.isEstopping,
+                estopStatus = uiState.estopStatus,
+                onEstopChanged = { enabled ->
+                    if (enabled) viewModel.sendIntent(UiIntent.Estop)
+                    else viewModel.sendIntent(UiIntent.EstopRelease)
+                },
                 motors = uiState.motors,
                 imuData = uiState.imuData
             )
@@ -278,8 +288,8 @@ fun MainScreen(viewModel: RobotControlViewModel) {
 @Composable
 private fun ConnectionStatusButton(
     status: ConnectionStatus,
-    serverHost: String,
-    serverPort: Int,
+    @Suppress("UNUSED_PARAMETER") serverHost: String,
+    @Suppress("UNUSED_PARAMETER") serverPort: Int,
     onClick: () -> Unit
 ) {
     when (status) {

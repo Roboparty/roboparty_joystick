@@ -67,7 +67,7 @@ fun MotorDetailCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${motor.positionName}详情",
+                    text = "电机 ${motor.id} 详情",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF1A1A2E)
@@ -91,10 +91,11 @@ fun MotorDetailCard(
 
             // 运行数据
             InfoSection(title = "运行数据") {
-                InfoRow("转速", "${motor.speed.toInt()} RPM")
-                InfoRow("电流", "${String.format("%.2f", motor.current)} A")
+                InfoRow("位置", "${String.format("%.4f", motor.position)} rad")
+                InfoRow("速度", "${String.format("%.4f", motor.speed)} rad/s")
+                InfoRow("扭矩", "${String.format("%.4f", motor.torque)} Nm")
                 InfoRow("温度", "${String.format("%.1f", motor.temperature)}°C", getTemperatureColor(motor.temperature))
-                InfoRow("编码器值", "${motor.encoder}")
+                InfoRow("模式", motor.modeDescription)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

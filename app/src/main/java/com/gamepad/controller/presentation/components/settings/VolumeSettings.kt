@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.VolumeDown
-import androidx.compose.material.icons.filled.VolumeMute
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeDown
+import androidx.compose.material.icons.automirrored.filled.VolumeMute
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -79,9 +79,9 @@ fun VolumeSettings(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Icon(
-                    imageVector = if (currentVolume == 0f) Icons.Filled.VolumeMute
-                    else if (currentVolume < maxVolume / 2f) Icons.Filled.VolumeDown
-                    else Icons.Filled.VolumeUp,
+                    imageVector = if (currentVolume == 0f) Icons.AutoMirrored.Filled.VolumeMute
+                    else if (currentVolume < maxVolume / 2f) Icons.AutoMirrored.Filled.VolumeDown
+                    else Icons.AutoMirrored.Filled.VolumeUp,
                     contentDescription = null,
                     modifier = Modifier.size(24.dp),
                     tint = Color(0xFF2D7FF9)

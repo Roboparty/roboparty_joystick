@@ -8,11 +8,14 @@ import android.util.Log
 import com.gamepad.controller.data.config.ConnectionConfig
 import com.gamepad.controller.data.model.BatteryData
 import com.gamepad.controller.data.model.BleDevice
+import com.gamepad.controller.data.model.ImuData
+import com.gamepad.controller.data.model.MotorStatusResponse
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.data.model.packet.AuthRequest
 import com.gamepad.controller.data.model.packet.ChallengeResponse
 import com.gamepad.controller.data.model.packet.ControlPacket
 import com.gamepad.controller.data.model.packet.ServerMessage
+import com.gamepad.controller.data.model.packet.StopPacket
 import com.gamepad.controller.domain.service.ControlChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -78,6 +81,17 @@ class BleControlChannel(
     // Token 有效性状态
     private val _isTokenValid = MutableStateFlow(false)
     override val isTokenValid: StateFlow<Boolean> = _isTokenValid.asStateFlow()
+
+    // ==================== 急停确认状态 ====================
+
+    private enum class StopState {
+        IDLE,               // 未触发
+        WAITING_ACCEPTED,   // 已发送 request，等待 accepted
+        CONFIRMED           // 已收到 accepted 并发送 received
+    }
+
+    private var stopState = StopState.IDLE
+    private var stopCompletable = CompletableDeferred<Boolean>()
 
     /**
      * 检查 Token 是否有效
@@ -273,6 +287,16 @@ class BleControlChannel(
     var onBatteryDataReceived: ((BatteryData) -> Unit)? = null
 
     /**
+     * IMU 数据回调
+     */
+    var onImuDataReceived: ((ImuData) -> Unit)? = null
+
+    /**
+     * 电机数据回调
+     */
+    var onMotorDataReceived: ((MotorStatusResponse) -> Unit)? = null
+
+    /**
      * 技能动作确认回调
      */
     var onSkillActionAckReceived: ((String) -> Unit)? = null
@@ -286,8 +310,11 @@ class BleControlChannel(
                 "auth_result" -> handleAuthResult(msg)
                 "heartbeat" -> handleHeartbeatResponse(msg)
                 "battery" -> handleBatteryData(msg)
+                "imu" -> handleImuData(data)
+                "motors" -> handleMotorData(data)
                 "skill_action_ack_received" -> handleSkillActionAckReceived(msg)
                 "skill_action_ack_completed" -> handleSkillActionAckCompleted(msg)
+                "stop" -> handleStopResponse(msg)
                 else -> Log.w(TAG, "Unknown message type: ${msg.type}")
             }
         } catch (e: Exception) {
@@ -344,6 +371,36 @@ class BleControlChannel(
     }
 
     /**
+     * 处理 IMU 数据
+     */
+    private fun handleImuData(data: String) {
+        try {
+            val imuData = jsonParser.decodeFromString<ImuData>(data)
+            val attitude = imuData.euler
+            Log.i(TAG, "IMU: pitch=${String.format("%.1f", attitude.pitch)}°, roll=${String.format("%.1f", attitude.roll)}°, yaw=${String.format("%.1f", attitude.yaw)}°, acc=[${String.format("%.2f", imuData.linAccX)}, ${String.format("%.2f", imuData.linAccY)}, ${String.format("%.2f", imuData.linAccZ)}]")
+            onImuDataReceived?.invoke(imuData)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse IMU data: ${e.message}")
+        }
+    }
+
+    /**
+     * 处理电机数据
+     */
+    private fun handleMotorData(data: String) {
+        try {
+            val motorResponse = jsonParser.decodeFromString<MotorStatusResponse>(data)
+            val motors = motorResponse.toMotorStatusList()
+            val errorCount = motors.count { it.errorCode != 0 }
+            val avgTemp = if (motors.isNotEmpty()) motors.map { it.temperature }.average() else 0.0
+            Log.i(TAG, "Motors: count=${motorResponse.motorCount}, errors=$errorCount, avgTemp=${String.format("%.1f", avgTemp)}°C")
+            onMotorDataReceived?.invoke(motorResponse)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse motor data: ${e.message}")
+        }
+    }
+
+    /**
      * 处理技能动作接收确认（ACK1）
      */
     private fun handleSkillActionAckReceived(msg: ServerMessage) {
@@ -363,6 +420,30 @@ class BleControlChannel(
         onSkillActionAckCompleted?.invoke(requestId, status, executionTime)
     }
 
+    /**
+     * 处理急停确认响应
+     *
+     * 收到 type=stop, status=accepted 后，发送 status=received
+     */
+    private fun handleStopResponse(msg: ServerMessage) {
+        val status = msg.status ?: return
+        Log.i(TAG, "Stop response received: status=$status, currentState=$stopState")
+
+        if (stopState == StopState.WAITING_ACCEPTED && status == "accepted") {
+            // 收到服务器确认，发送 received
+            stopState = StopState.CONFIRMED
+            val receivedPacket = StopPacket.received(
+                token = _token.value ?: "",
+                sequence = System.currentTimeMillis()
+            )
+            scope.launch {
+                sendJsonData(jsonParser.encodeToString(receivedPacket))
+            }
+            Log.i(TAG, "Stop confirmed, sent received acknowledgement")
+            stopCompletable.complete(true)
+        }
+    }
+
     // ==================== 数据发送 ====================
 
     override fun sendControl(packet: ControlPacket) {
@@ -378,16 +459,36 @@ class BleControlChannel(
         pendingFrame.set(data)
     }
 
-    override fun sendEstop(packet: ControlPacket) {
-        if (!_isConnected.value) return
-        // 急停指令不检查 token 有效性，始终发送
-        Log.w(TAG, "ESTOP: bypassing token check")
+    override suspend fun sendEstop(): Boolean {
+        if (!_isConnected.value) return false
 
-        val packetWithToken = packet.copy(token = _token.value ?: "")
-        val data = jsonParser.encodeToString(packetWithToken)
-        Log.w(TAG, "OUT [${packetWithToken.type}]: ESTOP packet sent")
+        // 重置急停状态
+        stopState = StopState.IDLE
+        stopCompletable = CompletableDeferred()
+
+        // 1. 发送 stop request
+        val requestPacket = StopPacket.request(
+            token = _token.value ?: "",
+            sequence = System.currentTimeMillis()
+        )
+        stopState = StopState.WAITING_ACCEPTED
         scope.launch {
-            sendJsonData(data)
+            sendJsonData(jsonParser.encodeToString(requestPacket))
+        }
+        Log.w(TAG, "ESTOP: sent stop request")
+
+        // 2. 等待服务器返回 accepted（超时5秒）
+        val result = withTimeoutOrNull(5000L) {
+            stopCompletable.await()
+        }
+
+        if (result == true) {
+            Log.i(TAG, "ESTOP: confirmed by server")
+            return true
+        } else {
+            Log.w(TAG, "ESTOP: timeout waiting for server confirmation")
+            stopState = StopState.IDLE
+            return false
         }
     }
 

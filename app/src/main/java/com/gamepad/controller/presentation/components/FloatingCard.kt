@@ -18,7 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
@@ -26,6 +26,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,14 +54,22 @@ private enum class CardTab(val label: String) {
 @Composable
 fun FloatingCard(
     onDismiss: () -> Unit,
+    isEstopping: Boolean = false,
+    estopStatus: com.gamepad.controller.domain.model.EstopStatus = com.gamepad.controller.domain.model.EstopStatus.IDLE,
+    onEstopChanged: (Boolean) -> Unit = {},
     motors: List<com.gamepad.controller.data.model.MotorStatus> = emptyList(),
     imuData: com.gamepad.controller.data.model.ImuData? = null,
-    onMotorClick: (com.gamepad.controller.data.model.MotorStatus) -> Unit = {}
+    @Suppress("UNUSED_PARAMETER") onMotorClick: (com.gamepad.controller.data.model.MotorStatus) -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf(CardTab.FUNCTIONS) }
-    var estopProgress by remember { mutableStateOf(0f) }
+    var estopProgress by remember { mutableStateOf(if (isEstopping) 1f else 0f) }
     var showMotorDetail by remember { mutableStateOf<com.gamepad.controller.data.model.MotorStatus?>(null) }
     var showImuDetail by remember { mutableStateOf(false) }
+
+    // 同步外部状态变化
+    LaunchedEffect(isEstopping) {
+        estopProgress = if (isEstopping) 1f else 0f
+    }
 
     Box(
         modifier = Modifier
@@ -105,7 +114,10 @@ fun FloatingCard(
             // ---- 紧急停机（同一行） ----
             EStopSlider(
                 progress = estopProgress,
-                onProgressChange = { estopProgress = it }
+                estopStatus = estopStatus,
+                onProgressChange = { estopProgress = it },
+                onEstopTriggered = { onEstopChanged(true) },
+                onEstopReleased = { onEstopChanged(false) }
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -160,7 +172,10 @@ fun FloatingCard(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun EStopSlider(
     progress: Float,
-    onProgressChange: (Float) -> Unit
+    estopStatus: com.gamepad.controller.domain.model.EstopStatus = com.gamepad.controller.domain.model.EstopStatus.IDLE,
+    onProgressChange: (Float) -> Unit,
+    onEstopTriggered: () -> Unit = {},
+    onEstopReleased: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -180,7 +195,14 @@ private fun EStopSlider(
 
         Slider(
             value = progress,
-            onValueChange = onProgressChange,
+            onValueChange = { newValue ->
+                onProgressChange(newValue)
+                if (newValue > 0.9f) {
+                    onEstopTriggered()
+                } else if (newValue < 0.1f) {
+                    onEstopReleased()
+                }
+            },
             modifier = Modifier.weight(1f),
             thumb = {
                 Box(
@@ -192,7 +214,7 @@ private fun EStopSlider(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(16.dp)
@@ -220,10 +242,23 @@ private fun EStopSlider(
         )
 
         Text(
-            text = if (progress > 0.9f) "已触发" else "",
+            text = when {
+                progress > 0.9f -> when (estopStatus) {
+                    com.gamepad.controller.domain.model.EstopStatus.SENDING -> "发送中..."
+                    com.gamepad.controller.domain.model.EstopStatus.WAITING -> "等待确认..."
+                    com.gamepad.controller.domain.model.EstopStatus.CONFIRMED -> "✓ 已确认"
+                    com.gamepad.controller.domain.model.EstopStatus.FAILED -> "✗ 确认失败"
+                    else -> "已触发"
+                }
+                else -> ""
+            },
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFFEF4444)
+            color = when (estopStatus) {
+                com.gamepad.controller.domain.model.EstopStatus.CONFIRMED -> Color(0xFF3FB950)
+                com.gamepad.controller.domain.model.EstopStatus.FAILED -> Color(0xFFEF4444)
+                else -> Color(0xFFEF4444)
+            }
         )
     }
 }
