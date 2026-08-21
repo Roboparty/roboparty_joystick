@@ -1,0 +1,101 @@
+name: Build RoboParty Joystick APK
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          build-tools: 34.0.0
+
+      - name: Tag vs versionName check
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          APP_VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts | head -1)
+
+          echo "Tag version:     $TAG_VERSION"
+          echo "App versionName: $APP_VERSION"
+
+          if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+            echo "::error::Version mismatch! tag=v$TAG_VERSION, versionName=$APP_VERSION"
+            exit 1
+          fi
+
+          echo "✅ Tag matches versionName: v$TAG_VERSION"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Configure release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          STORE_PASS="${RELEASE_STORE_PASSWORD:-roboPartyStore}"
+          KEY_PASS="${RELEASE_KEY_PASSWORD:-${STORE_PASS}}"
+
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/release-key.jks
+          else
+            keytool -genkeypair -v \
+              -keystore app/release-key.jks \
+              -alias android_controller \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$STORE_PASS" \
+              -dname "CN=RoboParty Joystick, OU=Dev, O=RoboParty, L=NA, ST=NA, C=CN"
+          fi
+
+          cat > local.properties <<EOF
+          RELEASE_STORE_PASSWORD=${STORE_PASS}
+          RELEASE_KEY_PASSWORD=${KEY_PASS}
+          EOF
+
+      - name: Build APKs
+        run: |
+          chmod +x gradlew
+          n=0
+          until ./gradlew assembleRelease assembleDebug --no-daemon; do
+            n=$((n + 1))
+            if [ "$n" -ge 3 ]; then
+              echo "::error::Build failed after $n attempts"
+              exit 1
+            fi
+            echo "Build attempt $n failed, retrying..."
+            sleep 15
+          done
+
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roboparty-joystick-release
+          path: app/build/outputs/apk/release/*.apk
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roboparty-joystick-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+      - name: Upload to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/debug/*.apk
