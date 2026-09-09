@@ -40,6 +40,8 @@ class GamepadInputManager @Inject constructor(
 
     companion object {
         private const val TAG = "GamepadInput"
+        /** 归零阈值 — 当摇杆值非常接近中心时，强制归零 */
+        private const val ZERO_THRESHOLD = 0.1f
     }
 
     private val inputManager: InputManager =
@@ -275,7 +277,13 @@ class GamepadInputManager @Inject constructor(
 
     private fun applyRadialDeadzone(x: Float, y: Float, deadzone: Float): Pair<Float, Float> {
         val magnitude = sqrt(x * x + y * y)
+
+        // 归零阈值：非常接近中心时强制归零
+        if (magnitude <= ZERO_THRESHOLD) return 0f to 0f
+
+        // 死区过滤
         if (magnitude <= deadzone) return 0f to 0f
+
         val scale = (magnitude - deadzone) / (1f - deadzone)
         val unitX = x / magnitude
         val unitY = y / magnitude

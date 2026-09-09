@@ -445,17 +445,32 @@ class RobotControlViewModel @Inject constructor(
         if (_uiState.value.isEstopping) return
 
         val axes = latestAxes.value
+
+        // 归零阈值：非常接近中心时强制归零，解决手柄漂移问题
+        val ZERO_THRESHOLD = 0.1f
+        val lx = if (kotlin.math.abs(axes.lx) < ZERO_THRESHOLD) 0f else axes.lx
+        val ly = if (kotlin.math.abs(axes.ly) < ZERO_THRESHOLD) 0f else axes.ly
+        val rx = if (kotlin.math.abs(axes.rx) < ZERO_THRESHOLD) 0f else axes.rx
+        val ry = if (kotlin.math.abs(axes.ry) < ZERO_THRESHOLD) 0f else axes.ry
+
+        // 截断为小数点后3位，减少数据传输量
+        fun Float.truncate3(): Float = (Math.round(this * 1000) / 1000f)
+
         val packet = ControlPacket(
             timestamp = System.currentTimeMillis(),
             sequence = ++seqCounter,
-            leftStickX = axes.lx,
-            leftStickY = axes.ly,
-            rightStickX = axes.rx,
-            rightStickY = axes.ry,
+            leftStickX = lx.truncate3(),
+            leftStickY = ly.truncate3(),
+            rightStickX = rx.truncate3(),
+            rightStickY = ry.truncate3(),
             btnA = buttonStates[GamepadButton.A] == true,
             btnB = buttonStates[GamepadButton.B] == true,
             btnX = buttonStates[GamepadButton.X] == true,
             btnY = buttonStates[GamepadButton.Y] == true,
+            btnLb = buttonStates[GamepadButton.LB] == true,
+            btnRb = buttonStates[GamepadButton.RB] == true,
+            btnLt = buttonStates[GamepadButton.LT] == true,
+            btnRt = buttonStates[GamepadButton.RT] == true,
             dpadUp = buttonStates[GamepadButton.DPAD_UP] == true,
             dpadDown = buttonStates[GamepadButton.DPAD_DOWN] == true,
             dpadLeft = buttonStates[GamepadButton.DPAD_LEFT] == true,

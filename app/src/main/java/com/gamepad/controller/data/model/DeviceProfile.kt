@@ -28,7 +28,7 @@ data class DeviceProfile(
     val buttonMap: Map<Int, Int> = emptyMap() // 原始按键码 → GamepadButton.ordinal
 ) {
     companion object {
-        const val DEFAULT_DEADZONE = 0.12f
+        const val DEFAULT_DEADZONE = 0.5f
 
         /** 通用轴映射：左摇杆=X/Y，右摇杆=Z/RZ，扳机=BRAKE/GAS */
         val DEFAULT_AXIS_MAP = mapOf(
