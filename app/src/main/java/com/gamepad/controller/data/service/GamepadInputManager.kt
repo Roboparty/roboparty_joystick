@@ -2,7 +2,6 @@ package com.gamepad.controller.data.service
 
 import android.content.Context
 import android.hardware.input.InputManager
-import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -56,7 +55,8 @@ class GamepadInputManager @Inject constructor(
 
     // ==================== 输入流 ====================
 
-    private val _rawInputFlow = MutableSharedFlow<RawInput>(extraBufferCapacity = 128)
+    private val _rawInputFlow = MutableStateFlow(RawInput())
+    private var inputCallback: ((RawInput) -> Unit)? = null
 
     private var deviceChangeListener: GamepadInputService.DeviceChangeListener? = null
 
@@ -65,7 +65,11 @@ class GamepadInputManager @Inject constructor(
 
     // ==================== GamepadInputService 实现 ====================
 
-    override fun rawInputFlow(): Flow<RawInput> = _rawInputFlow.asSharedFlow()
+    override fun rawInputFlow(): Flow<RawInput> = _rawInputFlow.asStateFlow()
+
+    fun setInputCallback(callback: ((RawInput) -> Unit)?) {
+        inputCallback = callback
+    }
 
     override fun connectedDevices(): List<DeviceProfile> = deviceRegistry.values.toList()
 
@@ -220,18 +224,22 @@ class GamepadInputManager @Inject constructor(
         val rawLt = event.getAxisValue(MotionEvent.AXIS_BRAKE)
         val rawRt = event.getAxisValue(MotionEvent.AXIS_GAS)
 
-        val (fLx, fLy) = applyRadialDeadzone(rawLx, rawLy, profile.deadzone)
-        val (fRx, fRy) = applyRadialDeadzone(rawRx, rawRy, profile.deadzone)
+        // 归零阈值：绝对值 <= 0.01 时归零
+        val THRESHOLD = 0.01f
+        val lx = if (kotlin.math.abs(rawLx) <= THRESHOLD) 0f else rawLx
+        val ly = if (kotlin.math.abs(rawLy) <= THRESHOLD) 0f else rawLy
+        val rx = if (kotlin.math.abs(rawRx) <= THRESHOLD) 0f else rawRx
+        val ry = if (kotlin.math.abs(rawRy) <= THRESHOLD) 0f else rawRy
 
-        val finalLy = if (profile.invertY) -fLy else fLy
-        val finalRy = if (profile.invertY) -fRy else fRy
+        // Y 轴反转
+        val finalLy = if (profile.invertY) -ly else ly
+        val finalRy = if (profile.invertY) -ry else ry
 
-        val gamma = profile.gamma
         val axes = AxesState(
-            lx = applyGamma(fLx, gamma),
-            ly = applyGamma(finalLy, gamma),
-            rx = applyGamma(fRx, gamma),
-            ry = applyGamma(finalRy, gamma),
+            lx = lx,
+            ly = finalLy,
+            rx = rx,
+            ry = finalRy,
             lt = rawLt.coerceIn(0f, 1f),
             rt = rawRt.coerceIn(0f, 1f)
         )
@@ -323,14 +331,17 @@ class GamepadInputManager @Inject constructor(
         button: GamepadButton? = null,
         isActionDown: Boolean = false
     ) {
-        _rawInputFlow.tryEmit(
-            RawInput(
-                deviceId = deviceId,
-                axes = axes,
-                button = button,
-                isActionDown = isActionDown,
-                eventTime = System.currentTimeMillis()
-            )
+        val input = RawInput(
+            deviceId = deviceId,
+            axes = axes,
+            button = button,
+            isActionDown = isActionDown,
+            eventTime = System.currentTimeMillis()
         )
+        // 同步回调
+        inputCallback?.invoke(input)
+
+        // 保留 Flow 供其他订阅者使用
+        _rawInputFlow.value = input
     }
 }

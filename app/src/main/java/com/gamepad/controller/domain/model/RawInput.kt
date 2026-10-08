@@ -15,14 +15,14 @@ import com.gamepad.controller.data.model.packet.AxesState
  * @param eventTime 事件时间戳（毫秒）
  */
 data class RawInput(
-    val deviceId: Int,
+    val deviceId: Int = 0,
     val axes: AxesState = AxesState.ZERO,
     val button: GamepadButton? = null,
     val isActionDown: Boolean = false,
     val eventTime: Long = System.currentTimeMillis()
 ) {
-    /** 是否为摇杆/轴事件 */
-    val isAxisEvent: Boolean get() = button == null && axes != AxesState.ZERO
+    /** 是否为摇杆/轴事件（含归零） */
+    val isAxisEvent: Boolean get() = button == null
 
     /** 是否为按键事件 */
     val isButtonEvent: Boolean get() = button != null

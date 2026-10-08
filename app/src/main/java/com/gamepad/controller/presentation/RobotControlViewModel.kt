@@ -12,6 +12,7 @@ import com.gamepad.controller.data.model.enums.GamepadButton
 import com.gamepad.controller.data.model.packet.AxesState
 import com.gamepad.controller.data.model.packet.ControlPacket
 import com.gamepad.controller.data.service.BleControlChannel
+import com.gamepad.controller.data.service.GamepadInputManager
 import com.gamepad.controller.data.service.OtaManager
 import com.gamepad.controller.data.service.ReliableActionSender
 import com.gamepad.controller.data.service.UdpControlChannel
@@ -74,7 +75,6 @@ class RobotControlViewModel @Inject constructor(
 
     private var seqCounter = 0L
     private var controlSendJob: Job? = null
-    private val latestAxes = MutableStateFlow(AxesState.ZERO)
 
     // ==================== 技能动作 ====================
 
@@ -250,10 +250,9 @@ class RobotControlViewModel @Inject constructor(
     }
 
     private fun setupInputListener() {
-        viewModelScope.launch {
-            gamepadInputService.rawInputFlow()
-                .catch { e -> Log.e(TAG, "Input flow error: ${e.message}") }
-                .collect { input -> handleRawInput(input) }
+        // 使用回调方式保证同步性，避免与 Flow 订阅重复处理
+        (gamepadInputService as? GamepadInputManager)?.setInputCallback { input ->
+            handleRawInput(input)
         }
     }
 
@@ -331,7 +330,6 @@ class RobotControlViewModel @Inject constructor(
 
     private fun handleRawInput(input: RawInput) {
         if (input.isAxisEvent) {
-            latestAxes.value = input.axes
             _uiState.value = _uiState.value.copy(
                 stickX = input.axes.lx,
                 stickY = input.axes.ly,
@@ -383,24 +381,20 @@ class RobotControlViewModel @Inject constructor(
         val nx = x.coerceIn(-1f, 1f)
         val ny = y.coerceIn(-1f, 1f)
         _uiState.value = _uiState.value.copy(stickX = nx, stickY = ny)
-        latestAxes.value = latestAxes.value.copy(lx = nx, ly = ny)
     }
 
     fun onJoystickTouchRelease() {
         _uiState.value = _uiState.value.copy(stickX = 0f, stickY = 0f)
-        latestAxes.value = latestAxes.value.copy(lx = 0f, ly = 0f)
     }
 
     fun onRightJoystickTouchMove(x: Float, y: Float) {
         val nx = x.coerceIn(-1f, 1f)
         val ny = y.coerceIn(-1f, 1f)
         _uiState.value = _uiState.value.copy(rightStickX = nx, rightStickY = ny)
-        latestAxes.value = latestAxes.value.copy(rx = nx, ry = ny)
     }
 
     fun onRightJoystickTouchRelease() {
         _uiState.value = _uiState.value.copy(rightStickX = 0f, rightStickY = 0f)
-        latestAxes.value = latestAxes.value.copy(rx = 0f, ry = 0f)
     }
 
     // ==================== 连接管理 ====================
@@ -444,14 +438,8 @@ class RobotControlViewModel @Inject constructor(
         if (_uiState.value.connectionStatus != ConnectionStatus.CONNECTED) return
         if (_uiState.value.isEstopping) return
 
-        val axes = latestAxes.value
-
-        // 归零阈值：非常接近中心时强制归零，解决手柄漂移问题
-        val ZERO_THRESHOLD = 0.1f
-        val lx = if (kotlin.math.abs(axes.lx) < ZERO_THRESHOLD) 0f else axes.lx
-        val ly = if (kotlin.math.abs(axes.ly) < ZERO_THRESHOLD) 0f else axes.ly
-        val rx = if (kotlin.math.abs(axes.rx) < ZERO_THRESHOLD) 0f else axes.rx
-        val ry = if (kotlin.math.abs(axes.ry) < ZERO_THRESHOLD) 0f else axes.ry
+        // 直接从 uiState 读取最新值
+        val state = _uiState.value
 
         // 截断为小数点后3位，减少数据传输量
         fun Float.truncate3(): Float = (Math.round(this * 1000) / 1000f)
@@ -459,10 +447,10 @@ class RobotControlViewModel @Inject constructor(
         val packet = ControlPacket(
             timestamp = System.currentTimeMillis(),
             sequence = ++seqCounter,
-            leftStickX = lx.truncate3(),
-            leftStickY = ly.truncate3(),
-            rightStickX = rx.truncate3(),
-            rightStickY = ry.truncate3(),
+            leftStickX = state.stickX.truncate3(),
+            leftStickY = state.stickY.truncate3(),
+            rightStickX = state.rightStickX.truncate3(),
+            rightStickY = state.rightStickY.truncate3(),
             btnA = buttonStates[GamepadButton.A] == true,
             btnB = buttonStates[GamepadButton.B] == true,
             btnX = buttonStates[GamepadButton.X] == true,
@@ -530,6 +518,8 @@ class RobotControlViewModel @Inject constructor(
         viewModelScope.launch {
             controlChannel.disconnect()
         }
+        // 解除单例持有的 ViewModel 引用，防止内存泄漏
+        (gamepadInputService as? GamepadInputManager)?.setInputCallback(null)
         gamepadInputService.stopListening()
     }
 }
