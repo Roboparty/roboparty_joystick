@@ -34,4 +34,5 @@ google-services.json
 *.hprof
 
 # Documentation
+doc/
 docs/
