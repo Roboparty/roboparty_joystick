@@ -19,8 +19,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 34
-          build-tools: 34.0.0
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
       - name: Tag vs versionName check
         if: startsWith(github.ref, 'refs/tags/v')
