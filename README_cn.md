@@ -1,8 +1,48 @@
-# Roboparty Joystick
+<a id="top"></a>
 
-[English](README.md) | **简体中文**
+<p align="center">
+  <a href="README.md">English</a> &nbsp; / &nbsp; <strong>简体中文</strong>
+</p>
 
-基于 Android 的机器人遥控手柄应用，支持 UDP/BLE 双通道通信、手柄输入、实时控制和 OTA 自更新。
+<a href="https://github.com/Roboparty/roboparty_joystick/releases/latest">
+  <img src="assets/hero.jpg" alt="Roboparty Joystick 控制界面" width="100%">
+</a>
+
+<h1 align="center">Roboparty Joystick</h1>
+
+<p align="center">
+  面向 Roboparty 机器人的 Android 控制端。<br>
+  物理手柄、触屏摇杆、UDP/BLE 通信、遥测和技能动作集中在一个控制台中。
+</p>
+
+<p align="center">
+  <a href="https://github.com/Roboparty/roboparty_joystick/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/Roboparty/roboparty_joystick/build-apk.yml?branch=main&style=flat-square&label=%E6%9E%84%E5%BB%BA" alt="构建"></a>
+  <a href="https://github.com/Roboparty/roboparty_joystick/releases/latest"><img src="https://img.shields.io/github/v/release/Roboparty/roboparty_joystick?display_name=tag&sort=semver&style=flat-square&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC" alt="最新版本"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0--or--later-2563EB?style=flat-square" alt="许可证"></a>
+  <a href="obtainium://add/https://github.com/Roboparty/roboparty_joystick"><img src="https://img.shields.io/badge/Get%20it%20on-Obtainium-7C3AED?style=flat-square&logo=android&logoColor=white" alt="Get it on Obtainium"></a>
+  <a href="https://github.com/Roboparty/roboparty_joystick/releases/latest"><img src="https://img.shields.io/badge/%E4%B8%8B%E8%BD%BD-%E6%9C%80%E6%96%B0%20APK-16A34A?style=flat-square&logo=github&logoColor=white" alt="下载最新 APK"></a>
+</p>
+
+---
+
+## 不被黑盒限制的控制台
+
+**Roboparty Joystick 是面向真实机器人的 Android 操作控制台。** 它把低延迟网络与 BLE 通道、手柄输入、触屏控制、遥测、技能动作和受保护的急停流程集中到一个界面中。
+
+<table width="100%">
+<thead>
+<tr><th align="left" width="33%">控制</th><th align="left" width="33%">连接</th><th align="left" width="34%">运行</th></tr>
+</thead>
+<tbody>
+<tr><td valign="top">双虚拟摇杆、物理手柄、姿态切换和 50 Hz 控制包发送。</td><td valign="top">UDP 适合低延迟会话，BLE 适合近距离设备，并通过 HMAC-SHA256 完成认证。</td><td valign="top">电池、IMU 和电机状态面板，可靠技能动作，急停确认和 OTA 更新。</td></tr>
+</tbody>
+</table>
+
+<p align="center"><sub>让操作员在同一个视图里看到机器人状态和下一步动作。</sub></p>
+
+## 发布与更新
+
+点击上方 Obtainium 徽章，或打开最新 GitHub Release。带版本标签的 CI 构建会发布签名 `app-release.apk` 和 SHA-256 校验文件。`KEYSTORE_BASE64` 必须保存持久化的 release 签名密钥，确保后续版本可以正常升级。
 
 ## 功能特性
 
@@ -51,6 +91,7 @@
 | 最低 API | 28（Android 9.0） |
 | 目标 API | 34（Android 14） |
 
+<!--
 ## 项目结构
 
 ```
@@ -131,6 +172,8 @@ app/src/main/java/com/gamepad/controller/
         ├── Color.kt                     # 颜色定义
         └── Theme.kt                     # 主题定义
 ```
+
+-->
 
 ## 配置说明
 

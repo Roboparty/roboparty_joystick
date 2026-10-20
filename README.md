@@ -1,8 +1,48 @@
-# Roboparty Joystick
+<a id="top"></a>
 
-**English** | [简体中文](README_cn.md)
+<p align="center">
+  <strong>English</strong> &nbsp; / &nbsp; <a href="README_cn.md">简体中文</a>
+</p>
 
-Android-based robot remote-control joystick app with UDP/BLE dual-channel communication, gamepad input, real-time control, and OTA self-update.
+<a href="https://github.com/Roboparty/roboparty_joystick/releases/latest">
+  <img src="assets/hero.jpg" alt="Roboparty Joystick control surface" width="100%">
+</a>
+
+<h1 align="center">Roboparty Joystick</h1>
+
+<p align="center">
+  A focused Android control surface for Roboparty robots.<br>
+  Physical gamepads, touch joysticks, UDP/BLE links, telemetry and skills in one cockpit.
+</p>
+
+<p align="center">
+  <a href="https://github.com/Roboparty/roboparty_joystick/actions/workflows/build-apk.yml"><img src="https://img.shields.io/github/actions/workflow/status/Roboparty/roboparty_joystick/build-apk.yml?branch=main&style=flat-square&label=Build" alt="Build"></a>
+  <a href="https://github.com/Roboparty/roboparty_joystick/releases/latest"><img src="https://img.shields.io/github/v/release/Roboparty/roboparty_joystick?display_name=tag&sort=semver&style=flat-square&label=Latest%20release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0--or--later-2563EB?style=flat-square" alt="License"></a>
+  <a href="obtainium://add/https://github.com/Roboparty/roboparty_joystick"><img src="https://img.shields.io/badge/Get%20it%20on-Obtainium-7C3AED?style=flat-square&logo=android&logoColor=white" alt="Get it on Obtainium"></a>
+  <a href="https://github.com/Roboparty/roboparty_joystick/releases/latest"><img src="https://img.shields.io/badge/Download-latest%20APK-16A34A?style=flat-square&logo=github&logoColor=white" alt="Download latest APK"></a>
+</p>
+
+---
+
+## Control Without the Black Box
+
+**Roboparty Joystick is the Android operator console for real-time robot control.** It combines low-latency network and BLE channels with gamepad input, touch control, telemetry, skill actions and a guarded emergency stop.
+
+<table width="100%">
+<thead>
+<tr><th align="left" width="33%">Control</th><th align="left" width="33%">Connection</th><th align="left" width="34%">Operations</th></tr>
+</thead>
+<tbody>
+<tr><td valign="top">Dual virtual joysticks, physical gamepads, posture switching and 50 Hz control packets.</td><td valign="top">UDP for low-latency sessions, BLE for nearby devices, authenticated with HMAC-SHA256.</td><td valign="top">Live battery, IMU and motor panels, reliable skills, e-stop confirmation and OTA updates.</td></tr>
+</tbody>
+</table>
+
+<p align="center"><sub>Designed for operators who need the robot state and the next action in the same view.</sub></p>
+
+## Release & Updates
+
+Use the Obtainium badge above or open the latest GitHub Release. Tagged CI builds publish the signed `app-release.apk` and a SHA-256 checksum. `KEYSTORE_BASE64` must contain the persistent release keystore so future updates remain installable.
 
 ## Features
 
@@ -51,6 +91,7 @@ Android-based robot remote-control joystick app with UDP/BLE dual-channel commun
 | Min API | 28 (Android 9.0) |
 | Target API | 34 (Android 14) |
 
+<!--
 ## Project Structure
 
 ```
@@ -131,6 +172,8 @@ app/src/main/java/com/gamepad/controller/
         ├── Color.kt                     # Color definitions
         └── Theme.kt                     # Theme definitions
 ```
+
+-->
 
 ## Configuration
 
