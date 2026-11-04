@@ -42,7 +42,7 @@ data class SkillActionAckReceived(
 data class SkillActionAckCompleted(
     @SerialName("type") val type: String = "skill_action_ack_completed",
     @SerialName("request_id") val requestId: String,
-    @SerialName("status") val status: String,  // success / failed / duplicate
+    @SerialName("status") val status: String,  // success / failed / duplicate / unsupported
     @SerialName("execution_time_ms") val executionTimeMs: Long = 0,
     @SerialName("timestamp") val timestamp: Long = System.currentTimeMillis()
 )

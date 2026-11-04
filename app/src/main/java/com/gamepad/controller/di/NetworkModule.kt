@@ -5,9 +5,8 @@ package com.gamepad.controller.di
 
 import android.content.Context
 import com.gamepad.controller.data.config.ConnectionConfig
-import com.gamepad.controller.data.service.BleConnectionManager
 import com.gamepad.controller.data.service.GamepadInputManager
-import com.gamepad.controller.data.service.UdpControlChannel
+import com.gamepad.controller.data.service.WssJsonControlChannel
 import com.gamepad.controller.domain.service.ControlChannel
 import com.gamepad.controller.domain.service.GamepadInputService
 import dagger.Binds
@@ -27,13 +26,7 @@ object NetworkModule {
     fun provideControlChannel(
         @ApplicationContext context: Context,
         config: ConnectionConfig
-    ): ControlChannel = UdpControlChannel(context, config)
-
-    @Provides
-    @Singleton
-    fun provideBleConnectionManager(
-        @ApplicationContext context: Context
-    ): BleConnectionManager = BleConnectionManager(context)
+    ): ControlChannel = WssJsonControlChannel(context, config)
 }
 
 @Module

@@ -4,6 +4,7 @@
 package com.gamepad.controller.domain.model
 
 import com.gamepad.controller.data.model.BatteryData
+import com.gamepad.controller.data.model.DeviceIdentity
 import com.gamepad.controller.data.model.ImuData
 import com.gamepad.controller.data.model.MotorStatus
 import com.gamepad.controller.data.model.MotorStatusResponse
@@ -41,6 +42,8 @@ data class UiState(
     val isEstopping: Boolean = false,
     val estopStatus: EstopStatus = EstopStatus.IDLE,
     val isTokenValid: Boolean = false,  // Token 是否有效
+    val connectionError: String? = null, // 最近一次连接失败原因
+    val pendingPairing: DeviceIdentity? = null, // 等待用户确认绑定的机器人
     // 服务器配置
     val serverHost: String = "10.43.21.32",
     val serverPort: Int = 9000,
@@ -52,6 +55,9 @@ data class UiState(
     // 右摇杆实时位置（-1~1）
     val rightStickX: Float = 0f,
     val rightStickY: Float = 0f,
+    // 模拟扳机（0~1，0=松开）
+    val leftTrigger: Float = 0f,
+    val rightTrigger: Float = 0f,
     // 电机状态
     val motors: List<MotorStatus> = emptyList(),
     val motorCount: Int = 0,

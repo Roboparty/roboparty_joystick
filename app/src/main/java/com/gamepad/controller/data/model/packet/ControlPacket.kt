@@ -7,7 +7,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * 控制指令包 — 匹配目标 UDP 服务器 JSON 格式
+ * 控制指令包 — rp_server /ws-json 格式
  *
  * 字段说明：
  * - type: 数据包类型标识
@@ -37,6 +37,8 @@ data class ControlPacket(
     @SerialName("btn_rb") val btnRb: Boolean = false,
     @SerialName("btn_lt") val btnLt: Boolean = false,
     @SerialName("btn_rt") val btnRt: Boolean = false,
+    @SerialName("lt") val lt: Float = 0f,
+    @SerialName("rt") val rt: Float = 0f,
     @SerialName("dpad_up") val dpadUp: Boolean = false,
     @SerialName("dpad_down") val dpadDown: Boolean = false,
     @SerialName("dpad_left") val dpadLeft: Boolean = false,

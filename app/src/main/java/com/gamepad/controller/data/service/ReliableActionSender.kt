@@ -229,6 +229,7 @@ class ReliableActionSender(
             "success" -> ActionRequestState.Success(executionTime)
             "failed" -> ActionRequestState.Failed("执行失败")
             "duplicate" -> ActionRequestState.Success(0)
+            "unsupported" -> ActionRequestState.Failed("服务器未启用技能执行")
             else -> ActionRequestState.Failed("未知状态: $status")
         }
 

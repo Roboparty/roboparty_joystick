@@ -12,7 +12,7 @@
 
 <p align="center">
   面向 Roboparty 机器人的 Android 控制端。<br>
-  物理手柄、触屏摇杆、UDP/BLE 通信、遥测和技能动作集中在一个控制台中。
+  物理手柄、触屏摇杆、WSS/JSON 机器人链路、遥测和技能动作集中在一个控制台中。
 </p>
 
 <p align="center">
@@ -27,14 +27,14 @@
 
 ## 不被黑盒限制的控制台
 
-**Roboparty Joystick 是面向真实机器人的 Android 操作控制台。** 它把低延迟网络与 BLE 通道、手柄输入、触屏控制、遥测、技能动作和受保护的急停流程集中到一个界面中。
+**Roboparty Joystick 是面向真实机器人的 Android 操作控制台。** 它把 WSS/JSON 机器人链路、手柄输入、触屏控制、遥测、技能动作和带锁存的软件停止流程集中到一个界面中。
 
 <table width="100%">
 <thead>
 <tr><th align="left" width="33%">控制</th><th align="left" width="33%">连接</th><th align="left" width="34%">运行</th></tr>
 </thead>
 <tbody>
-<tr><td valign="top">双虚拟摇杆、物理手柄、姿态切换和 50 Hz 控制包发送。</td><td valign="top">UDP 适合低延迟会话，BLE 适合近距离设备，并通过 HMAC-SHA256 完成认证。</td><td valign="top">电池、IMU 和电机状态面板，可靠技能动作，急停确认和 OTA 更新。</td></tr>
+<tr><td valign="top">双虚拟摇杆、物理手柄、姿态切换和 50 Hz 控制包发送。</td><td valign="top">WSS/JSON 是 rp_server 的传输方式。认证使用配对密钥的 ECDSA 挑战（Android Keystore）。</td><td valign="top">电池、IMU 和电机状态面板，可靠技能动作，软件停止锁存和 OTA 更新。</td></tr>
 </tbody>
 </table>
 
@@ -47,7 +47,7 @@
 ## 功能特性
 
 ### 核心控制
-- **双通道通信**：UDP（低延迟）和 BLE（蓝牙低功耗）两种连接方式
+- **控制通道**：WSS/JSON（`/ws-json`），带显式控制租约
 - **手柄输入**：支持物理游戏手柄（摇杆、按键、十字键）
 - **触屏操控**：虚拟摇杆圆盘，支持触屏拖拽控制
 - **高频发送**：50Hz 控制包发送频率（20ms/帧）
@@ -56,7 +56,10 @@
 
 ### 认证与安全
 - **三步认证**：AuthRequest → Challenge → ChallengeResponse → Token
-- **HMAC-SHA256 签名**：基于预共享密钥的挑战-响应认证
+- **挑战-响应认证**：WSS/JSON 使用 Android Keystore 的 ECDSA-P256，由已配对 App 公钥验签
+- **密钥存储**：密钥在「设置 → 授权与绑定」中设置，使用 Android Keystore 加密，APK 内不再硬编码
+- **SN 绑定**：认证前读取 `GET /identity`（SN 来自 TUI）；SN 变化会拒绝连接，需清除绑定后重新配对
+- **一次性配对码**：机器人运行 `rp-server-pair code`，App 在「授权与绑定」输入 6 位码登记 App 公钥（EC P-256，Keystore 私钥）
 - **Token 自动续期**：Token 过期自动重连
 - **心跳保活**：定期心跳检测连接状态
 
@@ -67,7 +70,7 @@
 - **滑动执行**：技能库面板支持滑动手势触发动作
 
 ### OTA 自更新
-- **版本检查**：UDP 协议查询最新版本
+- **版本检查**：通过独立的 OTA 服务 UDP 查询最新版本
 - **HTTP 下载**：APK 文件下载，支持进度显示和 MD5 校验
 - **系统安装**：通过 FileProvider 调用系统安装器
 - **独立配置**：OTA 服务器地址可独立配置
@@ -98,10 +101,9 @@
 app/src/main/java/com/gamepad/controller/
 ├── data/
 │   ├── config/
-│   │   └── ConnectionConfig.kt          # 连接配置（UDP/BLE/OTA/失效保护）
+│   │   └── ConnectionConfig.kt          # 连接配置（WSS/OTA/失效保护）
 │   ├── model/
 │   │   ├── BatteryData.kt               # BMS 电池数据
-│   │   ├── BleDevice.kt                 # BLE 设备信息
 │   │   ├── DeviceProfile.kt             # 手柄设备配置（轴映射/死区/按键映射）
 │   │   ├── ImuData.kt                   # IMU 传感器数据
 │   │   ├── MotorStatus.kt               # 电机状态
@@ -110,20 +112,14 @@ app/src/main/java/com/gamepad/controller/
 │   │   │   ├── ConnectionStatus.kt      # 连接状态枚举
 │   │   │   └── GamepadButton.kt         # 手柄按键枚举
 │   │   └── packet/
-│   │       ├── AuthPacket.kt            # 认证数据包
 │   │       ├── AxesState.kt             # 摇杆/扳机轴状态
 │   │       ├── ControlPacket.kt         # 控制数据包
 │   │       ├── OtaPacket.kt             # OTA 版本检查数据包
 │   │       ├── SkillActionPacket.kt     # 技能动作数据包
-│   │       └── StopPacket.kt            # 急停数据包（三步确认）
 │   └── service/
-│       ├── BleConnectionManager.kt      # BLE 连接管理
-│       ├── BleControlChannel.kt         # BLE 控制通道
-│       ├── CryptoHelper.kt              # HMAC-SHA256 签名
 │       ├── GamepadInputManager.kt       # 手柄输入管理
 │       ├── OtaManager.kt                # OTA 更新管理器
 │       ├── ReliableActionSender.kt      # 可靠动作发送器
-│       └── UdpControlChannel.kt         # UDP 控制通道
 ├── di/
 │   ├── AppModule.kt                     # 应用模块
 │   └── NetworkModule.kt                 # 网络模块
@@ -152,9 +148,7 @@ app/src/main/java/com/gamepad/controller/
     │   ├── ImuDetailCard.kt             # IMU 详情卡片
     │   ├── MotorStatusList.kt           # 电机状态列表
     │   ├── MotorDetailCard.kt           # 电机详情卡片
-    │   ├── BleDeviceList.kt             # BLE 设备列表
     │   ├── ConnectionDialog.kt          # 连接对话框
-    │   ├── ConnectionModeSelector.kt    # 连接模式选择
     │   ├── SettingsPanel.kt             # 设置面板
     │   ├── FloatingBall.kt              # 悬浮球
     │   ├── FloatingCard.kt              # 悬浮卡片
@@ -183,7 +177,8 @@ app/src/main/java/com/gamepad/controller/
 {
   "control": {
     "host": "10.43.21.32",
-    "port": 9000
+    "port": 9000,
+    "tls": false
   },
   "controlParams": {
     "max_linear_velocity": 1.5,
@@ -202,13 +197,6 @@ app/src/main/java/com/gamepad/controller/
     "reconnect_delay_ms": 2000,
     "reconnect_max_count": 5
   },
-  "ble": {
-    "service_uuid": "0000fff0-0000-1000-8000-00805f9b34fb",
-    "tx_characteristic_uuid": "0000fff1-0000-1000-8000-00805f9b34fb",
-    "rx_characteristic_uuid": "0000fff2-0000-1000-8000-00805f9b34fb",
-    "scan_timeout_ms": 10000,
-    "mtu_size": 512
-  },
   "ota": {
     "host": "10.43.21.32",
     "port": 9001,
@@ -224,8 +212,9 @@ app/src/main/java/com/gamepad/controller/
 | controlParams | 控制参数（速度、频率） |
 | failSafe | 失效保护参数（手柄输入超时、数据包过期阈值） |
 | auth | 认证、心跳、重连参数 |
-| ble | 蓝牙连接参数（服务/特征 UUID、MTU） |
 | ota | OTA 更新服务器配置 |
+
+> rp_server 只启用 `/ws-json`。`tls=false` 时使用 `ws://`，`tls=true` 时使用 `wss://` 并校验 `/identity.tlsSpkiSha256`。
 
 ## 通信协议
 
@@ -249,12 +238,16 @@ app/src/main/java/com/gamepad/controller/
   "btn_rb": false,
   "btn_lt": false,
   "btn_rt": false,
+  "lt": 0.0,
+  "rt": 0.0,
   "dpad_up": false,
   "dpad_down": false,
   "dpad_left": false,
   "dpad_right": false
 }
 ```
+
+`lt`/`rt` 为 `[0,1]` 的模拟扳机，rp_server 会映射为负的 `AXIS_LT/RT` 用于转向；`btn_lt`/`btn_rt` 作为数字量兜底。
 
 ### 技能动作
 
@@ -269,7 +262,7 @@ app/src/main/java/com/gamepad/controller/
 }
 ```
 
-### 急停协议
+### 软件停止协议
 
 三步确认协议，确保急停指令可靠送达：
 
@@ -279,6 +272,15 @@ app/src/main/java/com/gamepad/controller/
 客户端 → 服务器: { type: "stop", status: "received" }
 ```
 
+服务端会锁存这次软件停止，直到显式清除前拒绝新的 `lease.acquire`：
+
+```
+客户端 → 服务器: { type: "stop", status: "clear" }
+服务器 → 客户端: { type: "stop", status: "cleared" }
+```
+
+清除后需要重新申请控制权。
+
 UI 状态反馈：发送中 → 等待确认 → 已确认（或确认失败）。
 
 ### 认证流程
@@ -286,7 +288,7 @@ UI 状态反馈：发送中 → 等待确认 → 已确认（或确认失败）�
 ```
 客户端 → 服务器: { type: "auth_request", device_id: "xxx" }
 服务器 → 客户端: { type: "challenge", challenge_code: "xxx" }
-客户端 → 服务器: { type: "challenge_response", signature: "HMAC-SHA256(...)" }
+客户端 → 服务器: { type: "challenge_response", signature: "ECDSA-P256(...)" }
 服务器 → 客户端: { type: "auth_result", ok: true, token: "xxx" }
 ```
 
@@ -314,15 +316,13 @@ UI 状态反馈：发送中 → 等待确认 → 已确认（或确认失败）�
 
 | 权限 | 用途 |
 |------|------|
-| INTERNET | UDP 网络通信 |
+| INTERNET | WSS 网络通信 |
 | ACCESS_NETWORK_STATE | 网络状态检测 |
 | CHANGE_NETWORK_STATE | 网络连接变更 |
 | ACCESS_WIFI_STATE | WiFi 状态检测 |
 | CHANGE_WIFI_STATE | WiFi 连接变更 |
-| BLUETOOTH_SCAN | BLE 设备扫描 |
-| BLUETOOTH_CONNECT | BLE 设备连接 |
-| ACCESS_FINE_LOCATION | WiFi/BLE 扫描 |
-| ACCESS_COARSE_LOCATION | 粗略定位（BLE 扫描兼容） |
+| ACCESS_FINE_LOCATION | WiFi 扫描 |
+| ACCESS_COARSE_LOCATION | 粗略定位（WiFi 扫描兼容） |
 | VIBRATE | 手柄震动反馈 |
 | REQUEST_INSTALL_PACKAGES | OTA APK 安装 |
 

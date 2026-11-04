@@ -3,27 +3,19 @@
 
 package com.gamepad.controller.domain.service
 
+import com.gamepad.controller.data.model.DeviceIdentity
 import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.data.model.packet.ControlPacket
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * 控制通道接口 — UDP 实现
- *
- * 对应设计文档 4.3 双通道架构中的控制通道
+ * 控制通道接口 — WSS/JSON 实现（rp_server /ws-json）
  *
  * 职责：
- * - 三步认证（AuthRequest → Challenge → ChallengeResponse → AuthResult）
- * - 高频发送摇杆/速度/按键数据（30~50Hz）
- * - UDP 语义：丢了就丢，不重传，下一帧覆盖
- * - 发送队列容量=1，新帧覆盖旧帧
- * - 心跳保活
- * - 断线自动重连
- *
- * 为何选 UDP 而非 TCP/WebSocket：
- * - 无队头阻塞（TCP 丢一个包会阻塞后续所有包）
- * - 不重传过期帧（50Hz 摇杆每帧 20ms，100ms 前的旧速度毫无意义）
- * - P99 尾部延迟显著优于 TCP
+ * - App 配对密钥挑战-响应认证（ECDSA-P256）
+ * - 控制租约（lease.acquire/heartbeat）
+ * - 高频发送摇杆/速度/按键数据（50Hz）
+ * - 心跳保活与断线重连
  */
 interface ControlChannel {
 
@@ -38,7 +30,7 @@ interface ControlChannel {
     val connectionStatus: StateFlow<ConnectionStatus>
 
     /**
-     * 认证 Token（三步认证成功后获取）
+     * 认证 Token（挑战-响应通过后获取）
      */
     val token: StateFlow<String?>
 
@@ -54,38 +46,42 @@ interface ControlChannel {
      */
     fun checkTokenValidity(): Boolean
 
+    /** 首次连接发现的新机器人身份，等待用户确认绑定。 */
+    val pendingPairing: StateFlow<DeviceIdentity?>
+
+    /** 确认绑定当前待确认的机器人。 */
+    fun confirmPairing(): Boolean
+
+    /** 取消本次绑定。 */
+    fun rejectPairing()
+
     /**
-     * 连接到机器人控制端口
+     * 连接到机器人 /ws-json
      *
-     * 执行三步认证流程：
-     * 1. 发送 AuthRequest
-     * 2. 接收 Challenge
-     * 3. 计算 HMAC-SHA256 签名并发送 ChallengeResponse
-     * 4. 接收 AuthResult，保存 Token
+     * 1. 读取 /identity 并校验 SN/设备密钥绑定
+     * 2. auth_request → challenge → challenge_response（ECDSA-P256）
+     * 3. auth_result 保存 JWT
+     * 4. lease.acquire 获取控制权
      *
      * @param host 机器人 IP 地址
-     * @param port UDP 控制端口（机器人端监听）
+     * @param port rp_server 端口（默认 9000）
      */
     suspend fun connect(host: String, port: Int)
 
     /**
-     * 断开 UDP 连接
+     * 断开 WebSocket 连接
      */
     fun disconnect()
 
     /**
-     * 发送控制指令（高频）
+     * 发送控制指令（50Hz）
      *
-     * 实现要点：
-     * - 将 ControlPacket 序列化为 JSON 字节
-     * - 通过 UDP 发送，不保证到达
-     * - 新帧自动覆盖未发送的旧帧（发送队列容量=1）
-     * - 自动携带认证 Token
+     * 将 ControlPacket 序列化为 JSON，自动携带认证 Token。
      */
     fun sendControl(packet: ControlPacket)
 
     /**
-     * 发送急停指令 — 三步确认协议
+     * 发送软件停止并锁存 — 三步确认协议
      *
      * 1. 发送 stop request
      * 2. 等待服务器返回 accepted
@@ -94,6 +90,13 @@ interface ControlChannel {
      * @return 是否收到服务器确认
      */
     suspend fun sendEstop(): Boolean
+
+    /**
+     * 清除服务器端锁存的软件停止，并重新申请控制权。
+     *
+     * @return 是否清除并重新获得控制权
+     */
+    suspend fun clearEstop(): Boolean = false
 
     /**
      * 发送原始JSON数据

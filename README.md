@@ -12,7 +12,7 @@
 
 <p align="center">
   A focused Android control surface for Roboparty robots.<br>
-  Physical gamepads, touch joysticks, UDP/BLE links, telemetry and skills in one cockpit.
+  Physical gamepads, touch joysticks, a WSS/JSON robot link, telemetry and skills in one cockpit.
 </p>
 
 <p align="center">
@@ -27,14 +27,14 @@
 
 ## Control Without the Black Box
 
-**Roboparty Joystick is the Android operator console for real-time robot control.** It combines low-latency network and BLE channels with gamepad input, touch control, telemetry, skill actions and a guarded emergency stop.
+**Roboparty Joystick is the Android operator console for real-time robot control.** It combines the WSS/JSON robot link with gamepad input, touch control, telemetry, skill actions and a latched software stop.
 
 <table width="100%">
 <thead>
 <tr><th align="left" width="33%">Control</th><th align="left" width="33%">Connection</th><th align="left" width="34%">Operations</th></tr>
 </thead>
 <tbody>
-<tr><td valign="top">Dual virtual joysticks, physical gamepads, posture switching and 50 Hz control packets.</td><td valign="top">UDP for low-latency sessions, BLE for nearby devices, authenticated with HMAC-SHA256.</td><td valign="top">Live battery, IMU and motor panels, reliable skills, e-stop confirmation and OTA updates.</td></tr>
+<tr><td valign="top">Dual virtual joysticks, physical gamepads, posture switching and 50 Hz control packets.</td><td valign="top">WSS/JSON is the rp_server transport. Auth uses a paired-key ECDSA challenge (Android Keystore).</td><td valign="top">Live battery, IMU and motor panels, reliable skills, latched software stop and OTA updates.</td></tr>
 </tbody>
 </table>
 
@@ -47,7 +47,7 @@ Use the Obtainium badge above or open the latest GitHub Release. Tagged CI build
 ## Features
 
 ### Core Control
-- **Dual-channel communication**: UDP (low latency) and BLE (Bluetooth Low Energy)
+- **Control channel**: WSS/JSON (`/ws-json`) with explicit control lease
 - **Gamepad input**: physical gamepads supported (sticks, buttons, D-pad)
 - **Touch control**: virtual joystick discs with touch-drag support
 - **High-frequency sending**: 50Hz control packet rate (20ms/frame)
@@ -56,7 +56,10 @@ Use the Obtainium badge above or open the latest GitHub Release. Tagged CI build
 
 ### Authentication & Security
 - **Three-step authentication**: AuthRequest → Challenge → ChallengeResponse → Token
-- **HMAC-SHA256 signing**: challenge-response authentication based on a pre-shared key
+- **Challenge-response auth**: ECDSA-P256 with an Android Keystore key, verified by the paired app key on `/ws-json`
+- **Key storage**: the shared key is set in Settings → 授权与绑定 and encrypted with Android Keystore; no key is hardcoded in the APK
+- **SN binding**: `GET /identity` (SN from TUI) is checked before auth; a changed SN blocks the connection until the binding is cleared
+- **One-time pairing code**: run `rp-server-pair code` on the robot, enter the 6-digit code under Settings → 授权与绑定 to register the app EC P-256 key
 - **Automatic token renewal**: reconnects automatically when the token expires
 - **Heartbeat keep-alive**: periodic heartbeat for connection status monitoring
 
@@ -67,7 +70,7 @@ Use the Obtainium badge above or open the latest GitHub Release. Tagged CI build
 - **Swipe-triggered**: swipe gestures in the skill library panel trigger actions
 
 ### OTA Self-Update
-- **Version check**: query the latest version over the UDP protocol
+- **Version check**: query the separate OTA service over UDP
 - **HTTP download**: APK download with progress display and MD5 verification
 - **System installer**: invokes the system installer via FileProvider
 - **Independent config**: OTA server address is configurable separately
@@ -98,10 +101,9 @@ Use the Obtainium badge above or open the latest GitHub Release. Tagged CI build
 app/src/main/java/com/gamepad/controller/
 ├── data/
 │   ├── config/
-│   │   └── ConnectionConfig.kt          # Connection config (UDP/BLE/OTA/fail-safe)
+│   │   └── ConnectionConfig.kt          # Connection config (WSS/OTA/fail-safe)
 │   ├── model/
 │   │   ├── BatteryData.kt               # BMS battery data
-│   │   ├── BleDevice.kt                 # BLE device info
 │   │   ├── DeviceProfile.kt             # Gamepad device profile (axis/deadzone/button mapping)
 │   │   ├── ImuData.kt                   # IMU sensor data
 │   │   ├── MotorStatus.kt               # Motor status
@@ -110,20 +112,14 @@ app/src/main/java/com/gamepad/controller/
 │   │   │   ├── ConnectionStatus.kt      # Connection status enum
 │   │   │   └── GamepadButton.kt         # Gamepad button enum
 │   │   └── packet/
-│   │       ├── AuthPacket.kt            # Authentication packet
 │   │       ├── AxesState.kt             # Stick/trigger axis state
 │   │       ├── ControlPacket.kt         # Control packet
 │   │       ├── OtaPacket.kt             # OTA version check packet
 │   │       ├── SkillActionPacket.kt     # Skill action packet
-│   │       └── StopPacket.kt            # E-stop packet (three-step confirmation)
 │   └── service/
-│       ├── BleConnectionManager.kt      # BLE connection manager
-│       ├── BleControlChannel.kt         # BLE control channel
-│       ├── CryptoHelper.kt              # HMAC-SHA256 signing
 │       ├── GamepadInputManager.kt       # Gamepad input manager
 │       ├── OtaManager.kt                # OTA update manager
 │       ├── ReliableActionSender.kt      # Reliable action sender
-│       └── UdpControlChannel.kt         # UDP control channel
 ├── di/
 │   ├── AppModule.kt                     # Application module
 │   └── NetworkModule.kt                 # Network module
@@ -152,9 +148,7 @@ app/src/main/java/com/gamepad/controller/
     │   ├── ImuDetailCard.kt             # IMU detail card
     │   ├── MotorStatusList.kt           # Motor status list
     │   ├── MotorDetailCard.kt           # Motor detail card
-    │   ├── BleDeviceList.kt             # BLE device list
     │   ├── ConnectionDialog.kt          # Connection dialog
-    │   ├── ConnectionModeSelector.kt    # Connection mode selector
     │   ├── SettingsPanel.kt             # Settings panel
     │   ├── FloatingBall.kt              # Floating ball
     │   ├── FloatingCard.kt              # Floating card
@@ -183,7 +177,8 @@ The configuration file is located at `app/src/main/assets/connection_config.json
 {
   "control": {
     "host": "10.43.21.32",
-    "port": 9000
+    "port": 9000,
+    "tls": false
   },
   "controlParams": {
     "max_linear_velocity": 1.5,
@@ -202,13 +197,6 @@ The configuration file is located at `app/src/main/assets/connection_config.json
     "reconnect_delay_ms": 2000,
     "reconnect_max_count": 5
   },
-  "ble": {
-    "service_uuid": "0000fff0-0000-1000-8000-00805f9b34fb",
-    "tx_characteristic_uuid": "0000fff1-0000-1000-8000-00805f9b34fb",
-    "rx_characteristic_uuid": "0000fff2-0000-1000-8000-00805f9b34fb",
-    "scan_timeout_ms": 10000,
-    "mtu_size": 512
-  },
   "ota": {
     "host": "10.43.21.32",
     "port": 9001,
@@ -224,7 +212,6 @@ The configuration file is located at `app/src/main/assets/connection_config.json
 | controlParams | Control parameters (velocity, frequency) |
 | failSafe | Fail-safe parameters (gamepad input timeout, stale packet threshold) |
 | auth | Authentication, heartbeat, and reconnection parameters |
-| ble | Bluetooth connection parameters (service/characteristic UUIDs, MTU) |
 | ota | OTA update server configuration |
 
 ## Communication Protocol
@@ -249,12 +236,16 @@ The configuration file is located at `app/src/main/assets/connection_config.json
   "btn_rb": false,
   "btn_lt": false,
   "btn_rt": false,
+  "lt": 0.0,
+  "rt": 0.0,
   "dpad_up": false,
   "dpad_down": false,
   "dpad_left": false,
   "dpad_right": false
 }
 ```
+
+`lt`/`rt` are analog triggers in `[0,1]`; rp_server maps them to negative `AXIS_LT/RT` for yaw. `btn_lt`/`btn_rt` remain the digital fallback.
 
 ### Skill Action
 
@@ -269,7 +260,7 @@ The configuration file is located at `app/src/main/assets/connection_config.json
 }
 ```
 
-### E-Stop Protocol
+### Software Stop Protocol
 
 Three-step confirmation protocol to ensure reliable delivery of the e-stop command:
 
@@ -279,14 +270,27 @@ Server → Client: { type: "stop", status: "accepted" }
 Client → Server: { type: "stop", status: "received" }
 ```
 
-UI status feedback: sending → waiting for confirmation → confirmed (or failed).
+The server latches the software stop and rejects new `lease.acquire` requests until
+it is explicitly cleared:
+
+```
+Client → Server: { type: "stop", status: "clear" }
+Server → Client: { type: "stop", status: "cleared" }
+```
+
+After clearing, the client must acquire the control lease again. UI status
+feedback: sending → waiting for confirmation → confirmed (or failed).
+
+### WSS control (recommended)
+
+Set `control.tls` to `true` for WSS. Pair first with `rp-server-pair code`, then the app signs the challenge with its Keystore EC key; TLS is pinned to `/identity.tlsSpkiSha256`.
 
 ### Authentication Flow
 
 ```
 Client → Server: { type: "auth_request", device_id: "xxx" }
 Server → Client: { type: "challenge", challenge_code: "xxx" }
-Client → Server: { type: "challenge_response", signature: "HMAC-SHA256(...)" }
+Client → Server: { type: "challenge_response", signature: "ECDSA-P256(...)" }
 Server → Client: { type: "auth_result", ok: true, token: "xxx" }
 ```
 
@@ -314,15 +318,13 @@ Server → Client: { type: "auth_result", ok: true, token: "xxx" }
 
 | Permission | Purpose |
 |------------|---------|
-| INTERNET | UDP network communication |
+| INTERNET | WSS network communication |
 | ACCESS_NETWORK_STATE | Network state detection |
 | CHANGE_NETWORK_STATE | Network connection changes |
 | ACCESS_WIFI_STATE | WiFi state detection |
 | CHANGE_WIFI_STATE | WiFi connection changes |
-| BLUETOOTH_SCAN | BLE device scanning |
-| BLUETOOTH_CONNECT | BLE device connection |
-| ACCESS_FINE_LOCATION | WiFi/BLE scanning |
-| ACCESS_COARSE_LOCATION | Coarse location (BLE scanning compatibility) |
+| ACCESS_FINE_LOCATION | WiFi scanning |
+| ACCESS_COARSE_LOCATION | Coarse location (WiFi scanning compatibility) |
 | VIBRATE | Gamepad vibration feedback |
 | REQUEST_INSTALL_PACKAGES | OTA APK installation |
 

@@ -19,9 +19,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -262,12 +264,38 @@ fun MainScreen(viewModel: RobotControlViewModel) {
             )
         }
 
+        // ---- 首次绑定确认 ----
+        uiState.pendingPairing?.let { identity ->
+            AlertDialog(
+                onDismissRequest = { viewModel.rejectPairing() },
+                title = { Text("绑定新机器人") },
+                text = {
+                    Text(
+                        "SN: ${identity.serial}\n" +
+                        "型号: ${identity.model.ifBlank { "未知" }}\n" +
+                        "设备密钥: ${identity.spkiSha256?.take(16) ?: "未提供"}"
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { viewModel.confirmPairing() }) {
+                        Text("绑定并连接")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { viewModel.rejectPairing() }) {
+                        Text("取消")
+                    }
+                }
+            )
+        }
+
         // ---- 连接对话框 ----
         if (showConnectionDialog) {
             ConnectionDialog(
                 serverHost = uiState.serverHost,
                 serverPort = uiState.serverPort,
                 connectionStatus = uiState.connectionStatus,
+                connectionError = uiState.connectionError,
                 onDismiss = { showConnectionDialog = false },
                 onConnect = { host, port ->
                     viewModel.sendIntent(UiIntent.ServerConfigChanged(host, port))

@@ -23,8 +23,8 @@ android {
         applicationId = "com.gamepad.controller"
         minSdk = 28
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -114,6 +114,9 @@ dependencies {
 
     // --- JSON: Kotlinx Serialization ---
     implementation(libs.kotlinx.serialization.json)
+
+    // --- WSS/JSON app gateway ---
+    implementation(libs.okhttp)
 
     // --- Testing ---
     testImplementation(libs.junit)

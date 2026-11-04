@@ -14,11 +14,10 @@ import com.gamepad.controller.data.model.enums.ConnectionStatus
 import com.gamepad.controller.data.model.enums.GamepadButton
 import com.gamepad.controller.data.model.packet.AxesState
 import com.gamepad.controller.data.model.packet.ControlPacket
-import com.gamepad.controller.data.service.BleControlChannel
 import com.gamepad.controller.data.service.GamepadInputManager
 import com.gamepad.controller.data.service.OtaManager
 import com.gamepad.controller.data.service.ReliableActionSender
-import com.gamepad.controller.data.service.UdpControlChannel
+import com.gamepad.controller.data.service.WssJsonControlChannel
 import com.gamepad.controller.domain.model.ActionRequestState
 import com.gamepad.controller.domain.model.EstopStatus
 import com.gamepad.controller.domain.model.PostureMode
@@ -45,7 +44,7 @@ import javax.inject.Inject
  *
  * MVI 架构核心：
  * - UiState 唯一可信源（StateFlow）
- * - 手柄输入 → 按键状态跟踪 → 节流 → UDP 发送（JSON 格式）
+ * - 手柄输入 → 按键状态跟踪 → 节流 → WSS/JSON 发送
  * - Fail-safe：后台 → 急停
  */
 @OptIn(FlowPreview::class)
@@ -201,6 +200,7 @@ class RobotControlViewModel @Inject constructor(
         setupInputListener()
         setupControlLoop()
         observeConnectionStatus()
+        observePendingPairing()
         observeActiveDevice()
         observeTokenValidity()
         setupChannelCallbacks()
@@ -234,21 +234,13 @@ class RobotControlViewModel @Inject constructor(
             handleSkillActionAckCompleted(requestId, status, executionTime)
         }
 
-        // 设置 UDP 通道回调
-        (controlChannel as? UdpControlChannel)?.let { udp ->
-            udp.onBatteryDataReceived = batteryCallback
-            udp.onImuDataReceived = imuCallback
-            udp.onMotorDataReceived = motorCallback
-            udp.onSkillActionAckReceived = ackReceivedCallback
-            udp.onSkillActionAckCompleted = ackCompletedCallback
-        }
-
-        // 设置 BLE 通道回调
-        (controlChannel as? BleControlChannel)?.let { ble ->
-            ble.onBatteryDataReceived = batteryCallback
-            ble.onImuDataReceived = imuCallback
-            ble.onSkillActionAckReceived = ackReceivedCallback
-            ble.onSkillActionAckCompleted = ackCompletedCallback
+        // 设置 WSS/JSON 通道回调
+        (controlChannel as? WssJsonControlChannel)?.let { wss ->
+            wss.onBatteryDataReceived = batteryCallback
+            wss.onImuDataReceived = imuCallback
+            wss.onMotorDataReceived = motorCallback
+            wss.onSkillActionAckReceived = ackReceivedCallback
+            wss.onSkillActionAckCompleted = ackCompletedCallback
         }
     }
 
@@ -272,7 +264,22 @@ class RobotControlViewModel @Inject constructor(
     private fun observeConnectionStatus() {
         viewModelScope.launch {
             controlChannel.connectionStatus.collect { status ->
-                _uiState.value = _uiState.value.copy(connectionStatus = status)
+                _uiState.value = _uiState.value.copy(
+                    connectionStatus = status,
+                    connectionError = if (status == com.gamepad.controller.data.model.enums.ConnectionStatus.CONNECTED) {
+                        null
+                    } else {
+                        _uiState.value.connectionError
+                    }
+                )
+            }
+        }
+    }
+
+    private fun observePendingPairing() {
+        viewModelScope.launch {
+            controlChannel.pendingPairing.collect { identity ->
+                _uiState.value = _uiState.value.copy(pendingPairing = identity)
             }
         }
     }
@@ -337,7 +344,9 @@ class RobotControlViewModel @Inject constructor(
                 stickX = input.axes.lx,
                 stickY = input.axes.ly,
                 rightStickX = input.axes.rx,
-                rightStickY = input.axes.ry
+                rightStickY = input.axes.ry,
+                leftTrigger = input.axes.lt,
+                rightTrigger = input.axes.rt
             )
         } else if (input.isButtonEvent) {
             val button = input.button!!
@@ -406,15 +415,33 @@ class RobotControlViewModel @Inject constructor(
         viewModelScope.launch {
             val host = _uiState.value.serverHost
             val port = _uiState.value.serverPort
-            _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.CONNECTING)
+            _uiState.value = _uiState.value.copy(
+                connectionStatus = ConnectionStatus.CONNECTING,
+                connectionError = null
+            )
             try {
                 controlChannel.connect(host, port)
                 Log.i(TAG, "Connected to robot at $host:$port")
             } catch (e: Exception) {
                 Log.e(TAG, "Connect failed: ${e.message}")
-                _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.FAILED)
+                _uiState.value = _uiState.value.copy(
+                    connectionStatus = ConnectionStatus.FAILED,
+                    connectionError = e.message
+                )
             }
         }
+    }
+
+    fun confirmPairing() {
+        if (controlChannel.confirmPairing()) {
+            _uiState.value = _uiState.value.copy(pendingPairing = null)
+            connectRobot()
+        }
+    }
+
+    fun rejectPairing() {
+        controlChannel.rejectPairing()
+        _uiState.value = _uiState.value.copy(pendingPairing = null)
     }
 
     fun disconnectRobot() {
@@ -462,6 +489,8 @@ class RobotControlViewModel @Inject constructor(
             btnRb = buttonStates[GamepadButton.RB] == true,
             btnLt = buttonStates[GamepadButton.LT] == true,
             btnRt = buttonStates[GamepadButton.RT] == true,
+            lt = state.leftTrigger.truncate3(),
+            rt = state.rightTrigger.truncate3(),
             dpadUp = buttonStates[GamepadButton.DPAD_UP] == true,
             dpadDown = buttonStates[GamepadButton.DPAD_DOWN] == true,
             dpadLeft = buttonStates[GamepadButton.DPAD_LEFT] == true,
@@ -499,10 +528,19 @@ class RobotControlViewModel @Inject constructor(
     }
 
     private fun releaseEstop() {
-        _uiState.value = _uiState.value.copy(
-            isEstopping = false,
-            estopStatus = EstopStatus.IDLE
-        )
+        viewModelScope.launch {
+            if (controlChannel.clearEstop()) {
+                _uiState.value = _uiState.value.copy(
+                    isEstopping = false,
+                    estopStatus = EstopStatus.IDLE,
+                    connectionError = null
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    connectionError = "解除急停失败，请重新连接"
+                )
+            }
+        }
     }
 
     // ==================== 生命周期 ====================

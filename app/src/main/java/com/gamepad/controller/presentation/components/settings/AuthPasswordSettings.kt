@@ -3,21 +3,13 @@
 
 package com.gamepad.controller.presentation.components.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -25,82 +17,162 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gamepad.controller.data.config.ConnectionConfig
+import com.gamepad.controller.data.auth.AppKeyStore
+import com.gamepad.controller.data.auth.PairingClient
+import com.gamepad.controller.data.auth.PairingPayloadParser
+import com.gamepad.controller.data.auth.RobotBindingStore
+import kotlinx.coroutines.launch
 
 /**
- * 授权密码设置
+ * 授权密钥与机器人绑定设置。
+ *
+ * 密钥由 Android Keystore 加密保存；未设置时认证失败（fail-closed）。
  */
 @Composable
 fun AuthPasswordSettings(modifier: Modifier = Modifier) {
-    var password by remember { mutableStateOf("••••••••") }
-    var showEditDialog by remember { mutableStateOf(false) }
-    var newPassword by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val bindingStore = remember { RobotBindingStore(context) }
+    val config = remember { ConnectionConfig.load(context) }
+    val appKeyStore = remember { AppKeyStore(context) }
+    val pairingClient = remember { PairingClient(config.auth.timeoutMs.toInt()) }
+    val scope = rememberCoroutineScope()
+
+    var binding by remember { mutableStateOf(bindingStore.load()) }
+    var pairUri by remember { mutableStateOf("") }
+    var pairStatus by remember { mutableStateOf("") }
+    var appKeyId by remember { mutableStateOf(appKeyStore.appKeyId()) }
+    var showClearBindingDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "授权密码",
+            text = "授权与绑定",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF1A1A2E)
         )
-
         Text(
-            text = "用于设备配对时的身份验证",
+            text = "App 使用本机 Keystore 中的 EC 密钥完成挑战-响应认证；机器人绑定用于识别 SN 变化。",
             fontSize = 13.sp,
             color = Color(0xFF999999)
         )
 
-        // 密码显示卡片
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFFF0F4FF))
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Text(
+            text = "App 配对",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A2E)
+        )
+        Text(
+            text = "在机器人上运行 `rp-server-pair code`，粘贴输出的 roboparty://pair?data=... URI（可由二维码承载）。",
+            fontSize = 13.sp,
+            color = Color(0xFF999999)
+        )
+        OutlinedTextField(
+            value = pairUri,
+            onValueChange = { pairUri = it },
+            label = { Text("配对 URI") },
+            singleLine = false,
+            maxLines = 3,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                keyboardType = KeyboardType.Uri
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedButton(
+            onClick = {
+                scope.launch {
+                    pairStatus = "配对中..."
+                    try {
+                        val payload = PairingPayloadParser.parse(pairUri)
+                        val result = pairingClient.register(
+                            config.control.host,
+                            config.control.port,
+                            payload.code,
+                            appKeyStore.ensurePublicKeyBase64(),
+                            Build.MODEL,
+                            payload.tlsSpkiSha256
+                        )
+                        if (!result.ok || result.appKeyId.isBlank()) {
+                            throw IllegalStateException("机器人拒绝配对")
+                        }
+                        appKeyStore.setAppKeyId(result.appKeyId)
+                        appKeyId = result.appKeyId
+                        bindingStore.savePairing(
+                            serial = payload.serial,
+                            machineId = payload.machineId,
+                            deviceSpkiSha256 = payload.deviceSpkiSha256,
+                            tlsSpkiSha256 = payload.tlsSpkiSha256,
+                            host = config.control.host
+                        )
+                        binding = bindingStore.load()
+                        pairStatus = "配对成功"
+                        pairUri = ""
+                    } catch (e: Exception) {
+                        pairStatus = "配对失败: ${e.message}"
+                    }
+                }
+            },
+            enabled = pairUri.startsWith("roboparty://pair?data="),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            Text("使用配对 URI 配对")
+        }
+        if (pairStatus.isNotEmpty()) {
+            Text(pairStatus, fontSize = 12.sp, color = Color(0xFF666666))
+        }
+        if (appKeyId.isNotEmpty()) {
+            Text("appKeyId: $appKeyId", fontSize = 12.sp, color = Color(0xFF666666))
+            OutlinedButton(
+                onClick = {
+                    appKeyStore.clear()
+                    appKeyId = ""
+                    pairStatus = "已清除本机 App 密钥（服务端记录需在板端 revoke）"
+                },
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Lock,
-                    contentDescription = null,
-                    modifier = Modifier.size(28.dp),
-                    tint = Color(0xFF2D7FF9)
-                )
-                Text(
-                    text = password,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color(0xFF1A1A2E),
-                    letterSpacing = 4.sp
-                )
+                Text("清除 App 配对密钥")
             }
-            Icon(
-                imageVector = Icons.Filled.Edit,
-                contentDescription = "编辑",
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { showEditDialog = true },
-                tint = Color(0xFF666666)
-            )
         }
 
         Text(
-            text = "点击右上角图标修改密码",
+            text = "机器人绑定",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF1A1A2E)
+        )
+        val bindingText = binding?.let {
+            "SN: ${it.serial}\n主机: ${it.host}\nTLS pin: ${if (it.tlsSpkiSha256.isBlank()) "缺失" else "已设置"}"
+        } ?: "未绑定（请先粘贴配对 URI）"
+        Text(
+            text = bindingText,
+            fontSize = 13.sp,
+            color = Color(0xFF666666)
+        )
+        if (binding != null) {
+            OutlinedButton(
+                onClick = { showClearBindingDialog = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("清除机器人绑定（换板/重新配对）")
+            }
+        }
+
+        Text(
+            text = "换控制板或 SN 变化后，需要清除绑定并重新连接。",
             fontSize = 12.sp,
             color = Color(0xFFBBBBBB),
             textAlign = TextAlign.Center,
@@ -108,39 +180,20 @@ fun AuthPasswordSettings(modifier: Modifier = Modifier) {
         )
     }
 
-    // 编辑对话框
-    if (showEditDialog) {
+    if (showClearBindingDialog) {
         AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = { Text("修改授权密码") },
-            text = {
-                OutlinedTextField(
-                    value = newPassword,
-                    onValueChange = { newPassword = it },
-                    label = { Text("新密码") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
+            onDismissRequest = { showClearBindingDialog = false },
+            title = { Text("清除机器人绑定？") },
+            text = { Text("下次连接需要在机器人侧重新生成配对 URI。") },
             confirmButton = {
                 TextButton(onClick = {
-                    if (newPassword.isNotBlank()) {
-                        password = "••••••••"
-                        // TODO: 保存新密码
-                    }
-                    showEditDialog = false
-                    newPassword = ""
-                }) {
-                    Text("确认")
-                }
+                    bindingStore.clear()
+                    binding = null
+                    showClearBindingDialog = false
+                }) { Text("清除") }
             },
             dismissButton = {
-                TextButton(onClick = {
-                    showEditDialog = false
-                    newPassword = ""
-                }) {
-                    Text("取消")
-                }
+                TextButton(onClick = { showClearBindingDialog = false }) { Text("取消") }
             }
         )
     }

@@ -86,7 +86,7 @@ fun SettingsPanel(
 
     val navItems = listOf(
         SettingsNavItem(Icons.Filled.NetworkWifi, "网络"),
-        SettingsNavItem(Icons.Filled.Key, "授权密码"),
+        SettingsNavItem(Icons.Filled.Key, "授权与绑定"),
         SettingsNavItem(Icons.Filled.Speed, "运动"),
         SettingsNavItem(Icons.Filled.SettingsVoice, "语音"),
         SettingsNavItem(Icons.AutoMirrored.Filled.VolumeUp, "音量"),

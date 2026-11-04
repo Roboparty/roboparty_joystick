@@ -7,7 +7,6 @@ import android.content.Context
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.IOException
 
 /**
  * 连接配置 — 从 assets/connection_config.json 加载
@@ -18,7 +17,6 @@ data class ConnectionConfig(
     val controlParams: ControlParamsConfig = ControlParamsConfig(),
     val failSafe: FailSafeConfig = FailSafeConfig(),
     val auth: AuthConfig = AuthConfig(),
-    val ble: BleConfig = BleConfig(),
     val ota: OtaConfig = OtaConfig()
 ) {
     companion object {
@@ -43,7 +41,9 @@ data class ConnectionConfig(
 @Serializable
 data class ControlConfig(
     @SerialName("host") val host: String = "10.43.21.32",
-    @SerialName("port") val port: Int = 9000
+    @SerialName("port") val port: Int = 9000,
+    /** Use HTTPS for /identity and WSS for /ws-json. */
+    @SerialName("tls") val tls: Boolean = true
 )
 
 @Serializable
@@ -78,25 +78,6 @@ data class AuthConfig(
     @SerialName("reconnect_delay_ms") val reconnectDelayMs: Long = 2000,
     /** 最大重连次数 */
     @SerialName("reconnect_max_count") val reconnectMaxCount: Int = 5
-)
-
-/**
- * BLE 配置
- *
- * 控制 BLE 连接参数
- */
-@Serializable
-data class BleConfig(
-    /** BLE 服务 UUID */
-    @SerialName("service_uuid") val serviceUuid: String = "0000fff0-0000-1000-8000-00805f9b34fb",
-    /** TX 特征 UUID（客户端写入） */
-    @SerialName("tx_characteristic_uuid") val txCharacteristicUuid: String = "0000fff1-0000-1000-8000-00805f9b34fb",
-    /** RX 特征 UUID（客户端接收通知） */
-    @SerialName("rx_characteristic_uuid") val rxCharacteristicUuid: String = "0000fff2-0000-1000-8000-00805f9b34fb",
-    /** 扫描超时（毫秒） */
-    @SerialName("scan_timeout_ms") val scanTimeoutMs: Long = 10000,
-    /** 请求的 MTU 大小 */
-    @SerialName("mtu_size") val mtuSize: Int = 512
 )
 
 /**

@@ -1,7 +1,8 @@
 {
   "control": {
     "host": "10.43.21.32",
-    "port": 9000
+    "port": 9000,
+    "tls": true
   },
   "controlParams": {
     "max_linear_velocity": 1.5,
@@ -19,13 +20,6 @@
     "heartbeat_timeout_ms": 5000,
     "reconnect_delay_ms": 2000,
     "reconnect_max_count": 5
-  },
-  "ble": {
-    "service_uuid": "0000fff0-0000-1000-8000-00805f9b34fb",
-    "tx_characteristic_uuid": "0000fff1-0000-1000-8000-00805f9b34fb",
-    "rx_characteristic_uuid": "0000fff2-0000-1000-8000-00805f9b34fb",
-    "scan_timeout_ms": 10000,
-    "mtu_size": 512
   },
   "ota": {
     "host": "10.43.21.32",

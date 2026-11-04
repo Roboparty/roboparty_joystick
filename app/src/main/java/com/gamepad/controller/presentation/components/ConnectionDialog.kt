@@ -65,6 +65,7 @@ fun ConnectionDialog(
     serverHost: String,
     serverPort: Int,
     connectionStatus: ConnectionStatus,
+    connectionError: String? = null,
     onDismiss: () -> Unit,
     onConnect: (host: String, port: Int) -> Unit,
     onDisconnect: () -> Unit,
@@ -90,7 +91,7 @@ fun ConnectionDialog(
             }
             ConnectionStatus.FAILED -> {
                 isConnecting = false
-                connectionMessage = "连接失败，请检查服务器地址"
+                connectionMessage = connectionError ?: "连接失败，请检查服务器地址"
             }
             ConnectionStatus.DISCONNECTED -> {
                 isConnecting = false
