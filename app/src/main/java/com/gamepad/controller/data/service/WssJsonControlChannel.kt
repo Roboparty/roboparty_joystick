@@ -90,6 +90,7 @@ class WssJsonControlChannel(
     private var authCompletable = CompletableDeferred<Boolean>()
     private var leaseCompletable = CompletableDeferred<Boolean>()
     @Volatile private var hasControlLease = false
+    @Volatile private var leaseRequested = false
     private var stopCompletable = CompletableDeferred<Boolean>()
     private var clearCompletable = CompletableDeferred<Boolean>()
     private var heartbeatJob: Job? = null
@@ -136,18 +137,9 @@ class WssJsonControlChannel(
             if (!authenticated) {
                 throw IllegalStateException("WSS 认证失败（配对或密钥不正确）")
             }
-            webSocket?.send(buildJsonObject {
-                put("type", "lease.acquire")
-                put("token", _token.value ?: "")
-            }.toString())
-            val acquired = withTimeoutOrNull(config.auth.timeoutMs) { leaseCompletable.await() } ?: false
-            if (!acquired || !hasControlLease) {
-                throw IllegalStateException("控制权申请失败，请重新连接")
-            }
             _connectionStatus.value = ConnectionStatus.CONNECTED
             _isConnected.value = true
-            startHeartbeat()
-            Log.i(TAG, "Connected: $url")
+            Log.i(TAG, "Connected (control lease deferred): $url")
         } catch (e: Exception) {
             Log.e(TAG, "Connect failed: ${e.message}", e)
             _connectionStatus.value = ConnectionStatus.FAILED
@@ -169,6 +161,7 @@ class WssJsonControlChannel(
 
     private fun cleanup() {
         hasControlLease = false
+        leaseRequested = false
         _isConnected.value = false
         heartbeatJob?.cancel()
         heartbeatJob = null
@@ -179,8 +172,41 @@ class WssJsonControlChannel(
 
     override fun sendControl(packet: ControlPacket) {
         val socket = webSocket ?: return
-        if (!_isConnected.value || !hasControlLease) return
+        if (!_isConnected.value) return
+        if (!hasControlLease) {
+            requestLease()
+            return
+        }
         socket.send(json.encodeToString(packet.copy(token = _token.value ?: "")))
+    }
+
+    private fun requestLease() {
+        if (leaseRequested || hasControlLease) return
+        leaseRequested = true
+        scope.launch {
+            try {
+                ensureLease()
+            } finally {
+                leaseRequested = false
+            }
+        }
+    }
+
+    private suspend fun ensureLease(): Boolean {
+        val socket = webSocket ?: return false
+        if (hasControlLease) return true
+        if (!_isConnected.value) return false
+        leaseCompletable = CompletableDeferred()
+        socket.send(buildJsonObject {
+            put("type", "lease.acquire")
+            put("token", _token.value ?: "")
+        }.toString())
+        val acquired = withTimeoutOrNull(config.auth.timeoutMs) { leaseCompletable.await() } ?: false
+        if (acquired && hasControlLease) {
+            startHeartbeat()
+            return true
+        }
+        return false
     }
 
     override suspend fun sendEstop(): Boolean {
@@ -227,7 +253,12 @@ class WssJsonControlChannel(
     }
 
     override fun sendJson(json: String) {
-        if (_isConnected.value && hasControlLease) webSocket?.send(json)
+        if (!_isConnected.value) return
+        if (!hasControlLease) {
+            requestLease()
+            return
+        }
+        webSocket?.send(json)
     }
 
     override fun confirmPairing(): Boolean {
