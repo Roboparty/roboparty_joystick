@@ -28,7 +28,8 @@ private data class PairRequest(
 data class PairResult(
     val ok: Boolean = false,
     @SerialName("appKeyId") val appKeyId: String = "",
-    val scopes: List<String> = emptyList()
+    val scopes: List<String> = emptyList(),
+    val replaced: List<String> = emptyList()
 )
 
 /**

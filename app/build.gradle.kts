@@ -23,8 +23,8 @@ android {
         applicationId = "com.gamepad.controller"
         minSdk = 28
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.1.0"
+        versionCode = 4
+        versionName = "1.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

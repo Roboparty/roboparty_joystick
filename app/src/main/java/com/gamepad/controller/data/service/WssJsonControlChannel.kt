@@ -135,7 +135,7 @@ class WssJsonControlChannel(
                 authCompletable.await()
             } ?: false
             if (!authenticated) {
-                throw IllegalStateException("WSS 认证失败（配对或密钥不正确）")
+                throw IllegalStateException("WSS 认证失败（可能已被新设备替换或凭据已撤销）")
             }
             _connectionStatus.value = ConnectionStatus.CONNECTED
             _isConnected.value = true

@@ -3,7 +3,11 @@
 
 package com.gamepad.controller.presentation.components.settings
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -54,6 +58,20 @@ fun AuthPasswordSettings(modifier: Modifier = Modifier) {
     var appKeyId by remember { mutableStateOf(appKeyStore.appKeyId()) }
     var showClearBindingDialog by remember { mutableStateOf(false) }
 
+    val scanLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val scanned = result.data?.getStringExtra("SCAN_RESULT").orEmpty()
+            if (scanned.startsWith("roboparty://pair?data=")) {
+                pairUri = scanned
+                pairStatus = "已读取二维码，请点击配对"
+            } else if (scanned.isNotBlank()) {
+                pairStatus = "二维码不是 RoboParty 配对 URI"
+            }
+        }
+    }
+
     Column(
         modifier = modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -77,7 +95,7 @@ fun AuthPasswordSettings(modifier: Modifier = Modifier) {
             color = Color(0xFF1A1A2E)
         )
         Text(
-            text = "在机器人上运行 `rp-server-pair code`，粘贴输出的 roboparty://pair?data=... URI（可由二维码承载）。",
+            text = "在机器人上运行 `rp-server-pair code`，扫描二维码或手动粘贴输出的 roboparty://pair?data=... URI。",
             fontSize = 13.sp,
             color = Color(0xFF999999)
         )
@@ -111,6 +129,7 @@ fun AuthPasswordSettings(modifier: Modifier = Modifier) {
                         }
                         appKeyStore.setAppKeyId(result.appKeyId)
                         appKeyId = result.appKeyId
+                        val replaced = result.replaced.size
                         bindingStore.savePairing(
                             serial = payload.serial,
                             machineId = payload.machineId,
@@ -119,7 +138,11 @@ fun AuthPasswordSettings(modifier: Modifier = Modifier) {
                             host = config.control.host
                         )
                         binding = bindingStore.load()
-                        pairStatus = "配对成功"
+                        pairStatus = if (replaced > 0) {
+                            "配对成功；已解除 $replaced 台旧设备绑定"
+                        } else {
+                            "配对成功"
+                        }
                         pairUri = ""
                     } catch (e: Exception) {
                         pairStatus = "配对失败: ${e.message}"
@@ -130,6 +153,21 @@ fun AuthPasswordSettings(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("使用配对 URI 配对")
+        }
+        OutlinedButton(
+            onClick = {
+                val intent = Intent("com.google.zxing.client.android.SCAN").apply {
+                    putExtra("SCAN_MODE", "QR_CODE_MODE")
+                }
+                try {
+                    scanLauncher.launch(intent)
+                } catch (e: Exception) {
+                    pairStatus = "未找到二维码扫描器，请手动粘贴配对 URI"
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("扫描配对二维码")
         }
         if (pairStatus.isNotEmpty()) {
             Text(pairStatus, fontSize = 12.sp, color = Color(0xFF666666))

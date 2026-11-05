@@ -18,6 +18,7 @@ data class PairingPayload(
     val expiresAt: Long,
     val tlsSpkiSha256: String,
     val deviceSpkiSha256: String,
+    val softwareSn: String,
     val serial: String,
     val machineId: String,
     val signature: String
@@ -38,6 +39,7 @@ object PairingPayloadParser {
             expiresAt = obj.optLong("expiresAt", 0L),
             tlsSpkiSha256 = obj.optString("tlsSpkiSha256", ""),
             deviceSpkiSha256 = obj.optString("deviceSpkiSha256", ""),
+            softwareSn = obj.optString("softwareSn", ""),
             serial = obj.optString("serial", ""),
             machineId = obj.optString("machineId", ""),
             signature = obj.optString("signature", "")
